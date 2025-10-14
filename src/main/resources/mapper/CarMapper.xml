@@ -6,6 +6,7 @@
 
     <resultMap id="BaseResultMap" type="com.losgai.sys.entity.carRental.Car">
             <id property="id" column="id" />
+            <result property="brandId" column="brand_id" />
             <result property="name" column="name" />
             <result property="number" column="number" />
             <result property="minRentalDays" column="min_rental_days" />
@@ -33,7 +34,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,name,number,min_rental_days,daily_rent,car_type,
+        id,brand_id,name,number,min_rental_days,daily_rent,car_type,
         power_type,purchase_time,horsepower,torque,fuel_consumption,
         endurance,description,size,seat,weight,
         volume,acceleration,images,status,hot_score,
@@ -53,12 +54,12 @@
     </delete>
     <insert id="insert" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.Car" useGeneratedKeys="true">
         insert into car
-        ( id,name,number,min_rental_days,daily_rent,car_type,
+        ( id,brand_id,name,number,min_rental_days,daily_rent,car_type,
         power_type,purchase_time,horsepower,torque,fuel_consumption,
         endurance,description,size,seat,weight,
         volume,acceleration,images,status,hot_score,
         avg_score,create_time,update_time,deleted)
-        values (#{id},#{name},#{number},#{minRentalDays},#{dailyRent},#{carType},
+        values (#{id},#{brandId},#{name},#{number},#{minRentalDays},#{dailyRent},#{carType},
         #{powerType},#{purchaseTime},#{horsepower},#{torque},#{fuelConsumption},
         #{endurance},#{description},#{size},#{seat},#{weight},
         #{volume},#{acceleration},#{images},#{status},#{hotScore},
@@ -68,6 +69,7 @@
         insert into car
         <trim prefix="(" suffix=")" suffixOverrides=",">
                 <if test="id != null">id,</if>
+                <if test="brandId != null">brand_id,</if>
                 <if test="name != null">name,</if>
                 <if test="number != null">number,</if>
                 <if test="minRentalDays != null">min_rental_days,</if>
@@ -95,6 +97,7 @@
         </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
                 <if test="id != null">#{id},</if>
+                <if test="brandId != null">#{brandId},</if>
                 <if test="name != null">#{name},</if>
                 <if test="number != null">#{number},</if>
                 <if test="minRentalDays != null">#{minRentalDays},</if>
@@ -124,6 +127,9 @@
     <update id="updateByPrimaryKeySelective" parameterType="com.losgai.sys.entity.carRental.Car">
         update car
         <set>
+                <if test="brandId != null">
+                    brand_id = #{brandId},
+                </if>
                 <if test="name != null">
                     name = #{name},
                 </if>
@@ -201,7 +207,8 @@
     </update>
     <update id="updateByPrimaryKey" parameterType="com.losgai.sys.entity.carRental.Car">
         update car
-        set 
+        set
+            brand_id =  #{brandId},
             name =  #{name},
             number =  #{number},
             min_rental_days =  #{minRentalDays},

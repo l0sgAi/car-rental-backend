@@ -21,6 +21,12 @@ public class Car implements Serializable {
     */
     @NotNull(message="[ID]不能为空")
     private Long id;
+
+    /**
+     * ID
+     */
+    @NotNull(message="[brandId]不能为空")
+    private Long brandId;
     /**
     * 车辆名
     */
