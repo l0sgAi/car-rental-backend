@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.losgai.sys.mapper.CarMapper">
+
+    <resultMap id="BaseResultMap" type="com.losgai.sys.entity.carRental.Car">
+            <id property="id" column="id" />
+            <result property="name" column="name" />
+            <result property="number" column="number" />
+            <result property="minRentalDays" column="min_rental_days" />
+            <result property="dailyRent" column="daily_rent" />
+            <result property="carType" column="car_type" />
+            <result property="powerType" column="power_type" />
+            <result property="purchaseTime" column="purchase_time" />
+            <result property="horsepower" column="horsepower" />
+            <result property="torque" column="torque" />
+            <result property="fuelConsumption" column="fuel_consumption" />
+            <result property="endurance" column="endurance" />
+            <result property="description" column="description" />
+            <result property="size" column="size" />
+            <result property="seat" column="seat" />
+            <result property="weight" column="weight" />
+            <result property="volume" column="volume" />
+            <result property="acceleration" column="acceleration" />
+            <result property="images" column="images" />
+            <result property="status" column="status" />
+            <result property="hotScore" column="hot_score" />
+            <result property="avgScore" column="avg_score" />
+            <result property="createTime" column="create_time" />
+            <result property="updateTime" column="update_time" />
+            <result property="deleted" column="deleted" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,name,number,min_rental_days,daily_rent,car_type,
+        power_type,purchase_time,horsepower,torque,fuel_consumption,
+        endurance,description,size,seat,weight,
+        volume,acceleration,images,status,hot_score,
+        avg_score,create_time,update_time,deleted
+    </sql>
+
+    <select id="selectByPrimaryKey" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List" />
+        from car
+        where  id = #{id} 
+    </select>
+
+    <delete id="deleteByPrimaryKey" parameterType="java.lang.Long">
+        delete from car
+        where  id = #{id} 
+    </delete>
+    <insert id="insert" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.Car" useGeneratedKeys="true">
+        insert into car
+        ( id,name,number,min_rental_days,daily_rent,car_type,
+        power_type,purchase_time,horsepower,torque,fuel_consumption,
+        endurance,description,size,seat,weight,
+        volume,acceleration,images,status,hot_score,
+        avg_score,create_time,update_time,deleted)
+        values (#{id},#{name},#{number},#{minRentalDays},#{dailyRent},#{carType},
+        #{powerType},#{purchaseTime},#{horsepower},#{torque},#{fuelConsumption},
+        #{endurance},#{description},#{size},#{seat},#{weight},
+        #{volume},#{acceleration},#{images},#{status},#{hotScore},
+        #{avgScore},#{createTime},#{updateTime},#{deleted})
+    </insert>
+    <insert id="insertSelective" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.Car" useGeneratedKeys="true">
+        insert into car
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+                <if test="id != null">id,</if>
+                <if test="name != null">name,</if>
+                <if test="number != null">number,</if>
+                <if test="minRentalDays != null">min_rental_days,</if>
+                <if test="dailyRent != null">daily_rent,</if>
+                <if test="carType != null">car_type,</if>
+                <if test="powerType != null">power_type,</if>
+                <if test="purchaseTime != null">purchase_time,</if>
+                <if test="horsepower != null">horsepower,</if>
+                <if test="torque != null">torque,</if>
+                <if test="fuelConsumption != null">fuel_consumption,</if>
+                <if test="endurance != null">endurance,</if>
+                <if test="description != null">description,</if>
+                <if test="size != null">size,</if>
+                <if test="seat != null">seat,</if>
+                <if test="weight != null">weight,</if>
+                <if test="volume != null">volume,</if>
+                <if test="acceleration != null">acceleration,</if>
+                <if test="images != null">images,</if>
+                <if test="status != null">status,</if>
+                <if test="hotScore != null">hot_score,</if>
+                <if test="avgScore != null">avg_score,</if>
+                <if test="createTime != null">create_time,</if>
+                <if test="updateTime != null">update_time,</if>
+                <if test="deleted != null">deleted,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+                <if test="id != null">#{id},</if>
+                <if test="name != null">#{name},</if>
+                <if test="number != null">#{number},</if>
+                <if test="minRentalDays != null">#{minRentalDays},</if>
+                <if test="dailyRent != null">#{dailyRent},</if>
+                <if test="carType != null">#{carType},</if>
+                <if test="powerType != null">#{powerType},</if>
+                <if test="purchaseTime != null">#{purchaseTime},</if>
+                <if test="horsepower != null">#{horsepower},</if>
+                <if test="torque != null">#{torque},</if>
+                <if test="fuelConsumption != null">#{fuelConsumption},</if>
+                <if test="endurance != null">#{endurance},</if>
+                <if test="description != null">#{description},</if>
+                <if test="size != null">#{size},</if>
+                <if test="seat != null">#{seat},</if>
+                <if test="weight != null">#{weight},</if>
+                <if test="volume != null">#{volume},</if>
+                <if test="acceleration != null">#{acceleration},</if>
+                <if test="images != null">#{images},</if>
+                <if test="status != null">#{status},</if>
+                <if test="hotScore != null">#{hotScore},</if>
+                <if test="avgScore != null">#{avgScore},</if>
+                <if test="createTime != null">#{createTime},</if>
+                <if test="updateTime != null">#{updateTime},</if>
+                <if test="deleted != null">#{deleted},</if>
+        </trim>
+    </insert>
+    <update id="updateByPrimaryKeySelective" parameterType="com.losgai.sys.entity.carRental.Car">
+        update car
+        <set>
+                <if test="name != null">
+                    name = #{name},
+                </if>
+                <if test="number != null">
+                    number = #{number},
+                </if>
+                <if test="minRentalDays != null">
+                    min_rental_days = #{minRentalDays},
+                </if>
+                <if test="dailyRent != null">
+                    daily_rent = #{dailyRent},
+                </if>
+                <if test="carType != null">
+                    car_type = #{carType},
+                </if>
+                <if test="powerType != null">
+                    power_type = #{powerType},
+                </if>
+                <if test="purchaseTime != null">
+                    purchase_time = #{purchaseTime},
+                </if>
+                <if test="horsepower != null">
+                    horsepower = #{horsepower},
+                </if>
+                <if test="torque != null">
+                    torque = #{torque},
+                </if>
+                <if test="fuelConsumption != null">
+                    fuel_consumption = #{fuelConsumption},
+                </if>
+                <if test="endurance != null">
+                    endurance = #{endurance},
+                </if>
+                <if test="description != null">
+                    description = #{description},
+                </if>
+                <if test="size != null">
+                    size = #{size},
+                </if>
+                <if test="seat != null">
+                    seat = #{seat},
+                </if>
+                <if test="weight != null">
+                    weight = #{weight},
+                </if>
+                <if test="volume != null">
+                    volume = #{volume},
+                </if>
+                <if test="acceleration != null">
+                    acceleration = #{acceleration},
+                </if>
+                <if test="images != null">
+                    images = #{images},
+                </if>
+                <if test="status != null">
+                    status = #{status},
+                </if>
+                <if test="hotScore != null">
+                    hot_score = #{hotScore},
+                </if>
+                <if test="avgScore != null">
+                    avg_score = #{avgScore},
+                </if>
+                <if test="createTime != null">
+                    create_time = #{createTime},
+                </if>
+                <if test="updateTime != null">
+                    update_time = #{updateTime},
+                </if>
+                <if test="deleted != null">
+                    deleted = #{deleted},
+                </if>
+        </set>
+        where   id = #{id} 
+    </update>
+    <update id="updateByPrimaryKey" parameterType="com.losgai.sys.entity.carRental.Car">
+        update car
+        set 
+            name =  #{name},
+            number =  #{number},
+            min_rental_days =  #{minRentalDays},
+            daily_rent =  #{dailyRent},
+            car_type =  #{carType},
+            power_type =  #{powerType},
+            purchase_time =  #{purchaseTime},
+            horsepower =  #{horsepower},
+            torque =  #{torque},
+            fuel_consumption =  #{fuelConsumption},
+            endurance =  #{endurance},
+            description =  #{description},
+            size =  #{size},
+            seat =  #{seat},
+            weight =  #{weight},
+            volume =  #{volume},
+            acceleration =  #{acceleration},
+            images =  #{images},
+            status =  #{status},
+            hot_score =  #{hotScore},
+            avg_score =  #{avgScore},
+            create_time =  #{createTime},
+            update_time =  #{updateTime},
+            deleted =  #{deleted}
+        where   id = #{id} 
+    </update>
+</mapper>

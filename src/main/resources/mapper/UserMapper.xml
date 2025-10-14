@@ -2,66 +2,68 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.losgai.ai.mapper.UserMapper">
+<mapper namespace="com.losgai.sys.mapper.UserMapper">
 
-    <resultMap id="BaseResultMap" type="com.losgai.ai.entity.sys.User">
-        <id property="id" column="id" jdbcType="BIGINT"/>
-        <result property="username" column="username" jdbcType="VARCHAR"/>
-        <result property="password" column="password" jdbcType="VARCHAR"/>
-        <result property="email" column="email" jdbcType="VARCHAR"/>
-        <result property="phone" column="phone" jdbcType="VARCHAR"/>
-        <result property="nickname" column="nickname" jdbcType="VARCHAR"/>
-        <result property="avatarUrl" column="avatar_url" jdbcType="VARCHAR"/>
-        <result property="gender" column="gender" jdbcType="TINYINT"/>
-        <result property="birthdate" column="birthdate" jdbcType="DATE"/>
-        <result property="status" column="status" jdbcType="TINYINT"/>
-        <result property="role" column="role" jdbcType="BIGINT"/>
-        <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
-        <result property="updateTime" column="update_time" jdbcType="TIMESTAMP"/>
-        <result property="deleted" column="deleted" jdbcType="TINYINT"/>
+    <resultMap id="BaseResultMap" type="com.losgai.sys.entity.sys.User">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="password" column="password"/>
+        <result property="idNumber" column="id_number"/>
+        <result property="licenseNumber" column="license_number"/>
+        <result property="licenseDate" column="license_date"/>
+        <result property="phone" column="phone"/>
+        <result property="realName" column="real_name"/>
+        <result property="avatarUrl" column="avatar_url"/>
+        <result property="gender" column="gender"/>
+        <result property="birthdate" column="birthdate"/>
+        <result property="status" column="status"/>
+        <result property="role" column="role"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="deleted" column="deleted"/>
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,username,password,
-        email,phone,nickname,
-        avatar_url,gender,birthdate,
-        status,role,create_time,
-        update_time,deleted
+        id
+        ,username,password,id_number,license_number,license_date,
+        phone,real_name,avatar_url,gender,birthdate,
+        status,role,create_time,update_time,deleted
     </sql>
 
     <select id="selectByPrimaryKey" parameterType="java.lang.Long" resultMap="BaseResultMap">
         select
-        <include refid="Base_Column_List" />
+        <include refid="Base_Column_List"/>
         from user
-        where  id = #{id,jdbcType=BIGINT}
+        where id = #{id,jdbcType=BIGINT}
     </select>
 
-    <select id="selectByUsername" resultType="com.losgai.ai.entity.sys.User">
+    <select id="selectByUsername" resultType="com.losgai.sys.entity.sys.User">
         select
-        <include refid="Base_Column_List" />
+        <include refid="Base_Column_List"/>
         from user
         where deleted = 0
-        and (phone = #{username,jdbcType=VARCHAR}
-        or email = #{username,jdbcType=VARCHAR})
+        and phone = #{username,jdbcType=VARCHAR}
         limit 1
     </select>
 
     <select id="existsByUsername" resultType="java.lang.Integer">
-        select exists(select 1 from
-            user where deleted = 0
-                   and (phone = #{userPhone,jdbcType=VARCHAR}
-                or email = #{email,jdbcType=VARCHAR}))
+        select exists(select 1
+                      from user
+                      where deleted = 0
+                        and (phone = #{phone,jdbcType=VARCHAR}
+                          or id_number = #{idNumber})
+                      )
     </select>
 
-    <select id="queryByKeyWord" resultType="com.losgai.ai.entity.sys.User">
+    <select id="queryByKeyWord" resultType="com.losgai.sys.entity.sys.User">
         select
-        <include refid="Base_Column_List" />
+        <include refid="Base_Column_List"/>
         from user
         where deleted = 0
         and role = 0
-        and (phone like concat('%',#{keyWord,jdbcType=VARCHAR},'%')
-        or email like concat('%',#{keyWord,jdbcType=VARCHAR},'%')
-        or username like concat('%',#{keyWord,jdbcType=VARCHAR},'%'))
+        and (phone = #{username,jdbcType=VARCHAR}
+        or username = #{username,jdbcType=VARCHAR}
+        or real_name = #{username,jdbcType=VARCHAR})
     </select>
 
     <update id="deleteByPrimaryKey" parameterType="java.lang.Long">
@@ -70,28 +72,42 @@
         where id = #{id,jdbcType=BIGINT}
     </update>
 
-    <insert id="insert" keyColumn="id" keyProperty="id" parameterType="com.losgai.ai.entity.sys.User" useGeneratedKeys="true">
+    <insert id="insert" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.sys.User"
+            useGeneratedKeys="true">
         insert into user
-        ( id,username,password
-        ,email,phone,nickname
-        ,avatar_url,gender,birthdate
-        ,status,role,create_time
-        ,update_time,deleted)
-        values (#{id,jdbcType=BIGINT},#{username,jdbcType=VARCHAR},#{password,jdbcType=VARCHAR}
-               ,#{email,jdbcType=VARCHAR},#{phone,jdbcType=VARCHAR},#{nickname,jdbcType=VARCHAR}
-               ,#{avatarUrl,jdbcType=VARCHAR},#{gender,jdbcType=TINYINT},#{birthdate,jdbcType=DATE}
-               ,#{status,jdbcType=TINYINT},#{role,jdbcType=BIGINT},#{createTime,jdbcType=TIMESTAMP}
-               ,#{updateTime,jdbcType=TIMESTAMP},#{deleted,jdbcType=TINYINT})
+        (id, username, password, id_number, license_number, license_date,
+         phone, real_name, avatar_url, gender, birthdate,
+         status, role, create_time, update_time, deleted)
+        values (#{id,jdbcType=BIGINT},
+                #{username,jdbcType=VARCHAR},
+                #{password,jdbcType=VARCHAR},
+                #{idNumber,jdbcType=VARCHAR},
+                #{licenseNumber,jdbcType=VARCHAR},
+                #{licenseDate,jdbcType=TIMESTAMP},
+                #{phone,jdbcType=VARCHAR},
+                #{realName,jdbcType=VARCHAR},
+                #{avatarUrl,jdbcType=VARCHAR},
+                #{gender,jdbcType=TINYINT},
+                #{birthdate,jdbcType=TIMESTAMP},
+                #{status,jdbcType=TINYINT},
+                #{role,jdbcType=BIGINT},
+                #{createTime,jdbcType=TIMESTAMP},
+                #{updateTime,jdbcType=TIMESTAMP},
+                #{deleted,jdbcType=TINYINT})
     </insert>
-    <insert id="insertSelective" keyColumn="id" keyProperty="id" parameterType="com.losgai.ai.entity.sys.User" useGeneratedKeys="true">
+
+    <insert id="insertSelective" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.sys.User"
+            useGeneratedKeys="true">
         insert into user
         <trim prefix="(" suffix=")" suffixOverrides=",">
             <if test="id != null">id,</if>
             <if test="username != null">username,</if>
             <if test="password != null">password,</if>
-            <if test="email != null">email,</if>
+            <if test="idNumber != null">id_number,</if>
+            <if test="licenseNumber != null">license_number,</if>
+            <if test="licenseDate != null">license_date,</if>
             <if test="phone != null">phone,</if>
-            <if test="nickname != null">nickname,</if>
+            <if test="realName != null">real_name,</if>
             <if test="avatarUrl != null">avatar_url,</if>
             <if test="gender != null">gender,</if>
             <if test="birthdate != null">birthdate,</if>
@@ -102,90 +118,103 @@
             <if test="deleted != null">deleted,</if>
         </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
-            <if test="id != null">#{id,jdbcType=BIGINT},</if>
-            <if test="username != null">#{username,jdbcType=VARCHAR},</if>
-            <if test="password != null">#{password,jdbcType=VARCHAR},</if>
-            <if test="email != null">#{email,jdbcType=VARCHAR},</if>
-            <if test="phone != null">#{phone,jdbcType=VARCHAR},</if>
-            <if test="nickname != null">#{nickname,jdbcType=VARCHAR},</if>
-            <if test="avatarUrl != null">#{avatarUrl,jdbcType=VARCHAR},</if>
-            <if test="gender != null">#{gender,jdbcType=TINYINT},</if>
-            <if test="birthdate != null">#{birthdate,jdbcType=DATE},</if>
-            <if test="status != null">#{status,jdbcType=TINYINT},</if>
-            <if test="role != null">#{role,jdbcType=BIGINT},</if>
-            <if test="createTime != null">#{createTime,jdbcType=TIMESTAMP},</if>
-            <if test="updateTime != null">#{updateTime,jdbcType=TIMESTAMP},</if>
-            <if test="deleted != null">#{deleted,jdbcType=TINYINT},</if>
+            <if test="id != null">#{id},</if>
+            <if test="username != null">#{username},</if>
+            <if test="password != null">#{password},</if>
+            <if test="idNumber != null">#{idNumber},</if>
+            <if test="licenseNumber != null">#{licenseNumber},</if>
+            <if test="licenseDate != null">#{licenseDate},</if>
+            <if test="phone != null">#{phone},</if>
+            <if test="realName != null">#{realName},</if>
+            <if test="avatarUrl != null">#{avatarUrl},</if>
+            <if test="gender != null">#{gender},</if>
+            <if test="birthdate != null">#{birthdate},</if>
+            <if test="status != null">#{status},</if>
+            <if test="role != null">#{role},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="deleted != null">#{deleted},</if>
         </trim>
     </insert>
-    <update id="updateByPrimaryKeySelective" parameterType="com.losgai.ai.entity.sys.User">
+
+    <update id="updateByPrimaryKeySelective" parameterType="com.losgai.sys.entity.sys.User">
         update user
         <set>
             <if test="username != null">
-                username = #{username,jdbcType=VARCHAR},
+                username = #{username},
             </if>
             <if test="password != null">
-                password = #{password,jdbcType=VARCHAR},
+                password = #{password},
             </if>
-            <if test="email != null">
-                email = #{email,jdbcType=VARCHAR},
+            <if test="idNumber != null">
+                id_number = #{idNumber},
+            </if>
+            <if test="licenseNumber != null">
+                license_number = #{licenseNumber},
+            </if>
+            <if test="licenseDate != null">
+                license_date = #{licenseDate},
             </if>
             <if test="phone != null">
-                phone = #{phone,jdbcType=VARCHAR},
+                phone = #{phone},
             </if>
-            <if test="nickname != null">
-                nickname = #{nickname,jdbcType=VARCHAR},
+            <if test="realName != null">
+                real_name = #{realName},
             </if>
             <if test="avatarUrl != null">
-                avatar_url = #{avatarUrl,jdbcType=VARCHAR},
+                avatar_url = #{avatarUrl},
             </if>
             <if test="gender != null">
-                gender = #{gender,jdbcType=TINYINT},
+                gender = #{gender},
             </if>
             <if test="birthdate != null">
-                birthdate = #{birthdate,jdbcType=DATE},
+                birthdate = #{birthdate},
             </if>
             <if test="status != null">
-                status = #{status,jdbcType=TINYINT},
+                status = #{status},
             </if>
             <if test="role != null">
-                role = #{role,jdbcType=BIGINT},
+                role = #{role},
             </if>
             <if test="createTime != null">
-                create_time = #{createTime,jdbcType=TIMESTAMP},
+                create_time = #{createTime},
             </if>
             <if test="updateTime != null">
-                update_time = #{updateTime,jdbcType=TIMESTAMP},
+                update_time = #{updateTime},
             </if>
             <if test="deleted != null">
-                deleted = #{deleted,jdbcType=TINYINT},
+                deleted = #{deleted},
             </if>
         </set>
-        where  id = #{id,jdbcType=BIGINT}
+        where   id = #{id}
         and deleted = 0
     </update>
-    <update id="updateByPrimaryKey" parameterType="com.losgai.ai.entity.sys.User">
+
+    <update id="updateByPrimaryKey" parameterType="com.losgai.sys.entity.sys.User">
         update user
         set
-            username =  #{username,jdbcType=VARCHAR},
-            password =  #{password,jdbcType=VARCHAR},
-            email =  #{email,jdbcType=VARCHAR},
-            phone =  #{phone,jdbcType=VARCHAR},
-            nickname =  #{nickname,jdbcType=VARCHAR},
-            avatar_url =  #{avatarUrl,jdbcType=VARCHAR},
-            gender =  #{gender,jdbcType=TINYINT},
-            birthdate =  #{birthdate,jdbcType=DATE},
-            status =  #{status,jdbcType=TINYINT},
-            role =  #{role,jdbcType=BIGINT},
-            create_time =  #{createTime,jdbcType=TIMESTAMP},
-            update_time =  #{updateTime,jdbcType=TIMESTAMP},
-            deleted =  #{deleted,jdbcType=TINYINT}
-        where   id = #{id,jdbcType=BIGINT}
+            username =  #{username},
+            password =  #{password},
+            id_number =  #{idNumber},
+            license_number =  #{licenseNumber},
+            license_date =  #{licenseDate},
+            phone =  #{phone},
+            real_name =  #{realName},
+            avatar_url =  #{avatarUrl},
+            gender =  #{gender},
+            birthdate =  #{birthdate},
+            status =  #{status},
+            role =  #{role},
+            create_time =  #{createTime},
+            update_time =  #{updateTime},
+            deleted =  #{deleted}
+        where id = #{id}
+        and deleted = 0
     </update>
 
-    <update id="updatePwd">
-        update user
-        set password = #{newPwd,jdbcType=VARCHAR}
-        where id = #{id,jdbcType=BIGINT}
-    </update>
+<!--    <update id="updatePwd">-->
+<!--        update user-->
+<!--        set password = #{newPwd,jdbcType=VARCHAR}-->
+<!--        where id = #{id,jdbcType=BIGINT}-->
+<!--    </update>-->
 </mapper>

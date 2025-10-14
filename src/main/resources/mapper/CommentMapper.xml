@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.losgai.sys.mapper.CommentMapper">
+
+    <resultMap id="BaseResultMap" type="com.losgai.sys.entity.carRental.Comment">
+            <id property="id" column="id" />
+            <result property="userId" column="user_id" />
+            <result property="carId" column="car_id" />
+            <result property="parentCommentId" column="parent_comment_id" />
+            <result property="followCommentId" column="follow_comment_id" />
+            <result property="content" column="content" />
+            <result property="createTime" column="create_time" />
+            <result property="updateTime" column="update_time" />
+            <result property="deleted" column="deleted" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,user_id,car_id,parent_comment_id,follow_comment_id,content,
+        create_time,update_time,deleted
+    </sql>
+
+    <select id="selectByPrimaryKey" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List" />
+        from comment
+        where  id = #{id} 
+    </select>
+
+    <delete id="deleteByPrimaryKey" parameterType="java.lang.Long">
+        delete from comment
+        where  id = #{id} 
+    </delete>
+    <insert id="insert" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.Comment" useGeneratedKeys="true">
+        insert into comment
+        ( id,user_id,car_id,parent_comment_id,follow_comment_id,content,
+        create_time,update_time,deleted)
+        values (#{id},#{userId},#{carId},#{parentCommentId},#{followCommentId},#{content},
+        #{createTime},#{updateTime},#{deleted})
+    </insert>
+    <insert id="insertSelective" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.Comment" useGeneratedKeys="true">
+        insert into comment
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+                <if test="id != null">id,</if>
+                <if test="userId != null">user_id,</if>
+                <if test="carId != null">car_id,</if>
+                <if test="parentCommentId != null">parent_comment_id,</if>
+                <if test="followCommentId != null">follow_comment_id,</if>
+                <if test="content != null">content,</if>
+                <if test="createTime != null">create_time,</if>
+                <if test="updateTime != null">update_time,</if>
+                <if test="deleted != null">deleted,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+                <if test="id != null">#{id},</if>
+                <if test="userId != null">#{userId},</if>
+                <if test="carId != null">#{carId},</if>
+                <if test="parentCommentId != null">#{parentCommentId},</if>
+                <if test="followCommentId != null">#{followCommentId},</if>
+                <if test="content != null">#{content},</if>
+                <if test="createTime != null">#{createTime},</if>
+                <if test="updateTime != null">#{updateTime},</if>
+                <if test="deleted != null">#{deleted},</if>
+        </trim>
+    </insert>
+    <update id="updateByPrimaryKeySelective" parameterType="com.losgai.sys.entity.carRental.Comment">
+        update comment
+        <set>
+                <if test="userId != null">
+                    user_id = #{userId},
+                </if>
+                <if test="carId != null">
+                    car_id = #{carId},
+                </if>
+                <if test="parentCommentId != null">
+                    parent_comment_id = #{parentCommentId},
+                </if>
+                <if test="followCommentId != null">
+                    follow_comment_id = #{followCommentId},
+                </if>
+                <if test="content != null">
+                    content = #{content},
+                </if>
+                <if test="createTime != null">
+                    create_time = #{createTime},
+                </if>
+                <if test="updateTime != null">
+                    update_time = #{updateTime},
+                </if>
+                <if test="deleted != null">
+                    deleted = #{deleted},
+                </if>
+        </set>
+        where   id = #{id} 
+    </update>
+    <update id="updateByPrimaryKey" parameterType="com.losgai.sys.entity.carRental.Comment">
+        update comment
+        set 
+            user_id =  #{userId},
+            car_id =  #{carId},
+            parent_comment_id =  #{parentCommentId},
+            follow_comment_id =  #{followCommentId},
+            content =  #{content},
+            create_time =  #{createTime},
+            update_time =  #{updateTime},
+            deleted =  #{deleted}
+        where   id = #{id} 
+    </update>
+</mapper>

@@ -47,8 +47,8 @@ CREATE TABLE `car`
     `images` varchar(1536) DEFAULT NULL COMMENT '图片url列表,逗号分隔，最多9张图片',
 
     `status` tinyint NOT NULL DEFAULT '0' COMMENT '车辆状态：0=正常，1=不可租',
-    `hotscore` int NOT NULL DEFAULT '0' COMMENT '热度评分',
-    `avgscore` int NOT NULL DEFAULT '0' COMMENT '车辆用户平均评分',
+    `hot_score` int NOT NULL DEFAULT '0' COMMENT '热度评分',
+    `avg_score` int NOT NULL DEFAULT '0' COMMENT '车辆用户平均评分',
 
     `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -61,8 +61,8 @@ CREATE TABLE `car`
 CREATE TABLE `rental_order`
 (
     `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
-    `userId` bigint unsigned NOT NULL COMMENT '对应用户ID',
-    `carId` bigint unsigned NOT NULL COMMENT '对应车辆ID',
+    `user_id` bigint unsigned NOT NULL COMMENT '对应用户ID',
+    `car_id` bigint unsigned NOT NULL COMMENT '对应车辆ID',
 
     `start_rental_time` date NOT NULL COMMENT '车辆起租日期',
     `end_rental_time` date NOT NULL COMMENT '车辆还车日期',
@@ -81,10 +81,10 @@ CREATE TABLE `rental_order`
 CREATE TABLE `comment`
 (
     `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
-    `userId` bigint unsigned NOT NULL COMMENT '对应用户ID',
-    `carId` bigint unsigned NOT NULL COMMENT '对应车辆ID',
-    `parentCommentId` bigint unsigned NOT NULL DEFAULT '0' COMMENT '父级评论id,默认0即为顶级评论',
-    `followCommentId` bigint unsigned NOT NULL DEFAULT '0' COMMENT '回复评论id,默认0即非回复评论',
+    `user_id` bigint unsigned NOT NULL COMMENT '对应用户ID',
+    `car_id` bigint unsigned NOT NULL COMMENT '对应车辆ID',
+    `parent_comment_id` bigint unsigned NOT NULL DEFAULT '0' COMMENT '父级评论id,默认0即为顶级评论',
+    `follow_comment_id` bigint unsigned NOT NULL DEFAULT '0' COMMENT '回复评论id,默认0即非回复评论',
 
     `content` varchar(1024) NOT NULL  COMMENT '评论内容',
 
