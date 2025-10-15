@@ -4,6 +4,8 @@ import com.losgai.sys.entity.sys.User;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
+
 /**
  * @author Losgai
  * @description 针对表【user(用户信息表)】的数据库操作Mapper
@@ -34,6 +36,8 @@ public interface UserMapper {
      * 通过用户名查询用户是否存在
      */
     int existsByUsername(@Param("idNumber") String idNumber,
-                         @Param("phone") String phone);
+                         @Param("phone") String phone,
+                         @Param("licenseNumber") String licenseNumber);
 
+    List<User> queryByKeyWord(String keyWord);
 }

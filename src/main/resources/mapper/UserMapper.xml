@@ -47,23 +47,38 @@
     </select>
 
     <select id="existsByUsername" resultType="java.lang.Integer">
-        select exists(select 1
-                      from user
-                      where deleted = 0
-                        and (phone = #{phone,jdbcType=VARCHAR}
-                          or id_number = #{idNumber})
-                      )
+        select exists(
+        select 1
+        from user
+        where deleted = 0
+        <trim prefix="and (" suffix=")" prefixOverrides="or">
+            <if test="phone != null and phone != ''">
+                or phone = #{phone,jdbcType=VARCHAR}
+            </if>
+            <if test="idNumber != null and idNumber != ''">
+                or id_number = #{idNumber,jdbcType=VARCHAR}
+            </if>
+            <if test="licenseNumber != null and licenseNumber != ''">
+                or license_number = #{licenseNumber,jdbcType=VARCHAR}
+            </if>
+        </trim>
+        )
     </select>
 
     <select id="queryByKeyWord" resultType="com.losgai.sys.entity.sys.User">
         select
         <include refid="Base_Column_List"/>
         from user
-        where deleted = 0
-        and role = 0
-        and (phone = #{username,jdbcType=VARCHAR}
-        or username = #{username,jdbcType=VARCHAR}
-        or real_name = #{username,jdbcType=VARCHAR})
+        <where>
+            deleted = 0
+            <if test="keyWord != null and keyWord.trim() != ''">
+                and (phone like concat('%',#{keyWord,jdbcType=VARCHAR},'%')
+                or username like concat('%',#{keyWord,jdbcType=VARCHAR},'%')
+                or real_name like concat('%',#{keyWord,jdbcType=VARCHAR},'%')
+                or id_number like concat('%',#{keyWord,jdbcType=VARCHAR},'%')
+                )
+            </if>
+        </where>
     </select>
 
     <update id="deleteByPrimaryKey" parameterType="java.lang.Long">

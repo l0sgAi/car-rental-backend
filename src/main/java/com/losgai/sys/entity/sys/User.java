@@ -1,5 +1,6 @@
 package com.losgai.sys.entity.sys;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import org.hibernate.validator.constraints.Length;
 
@@ -51,6 +52,7 @@ public class User implements Serializable {
     /**
      * 手机号
      */
+    @NotBlank(message="[手机号]不能为空")
     @Size(max= 20,message="编码长度不能超过20")
     @Length(max= 20,message="编码长度不能超过20")
     private String phone;

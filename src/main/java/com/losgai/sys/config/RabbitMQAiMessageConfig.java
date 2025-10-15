@@ -10,9 +10,9 @@ import java.util.List;
 @Configuration
 public class RabbitMQAiMessageConfig {
 
-    public static final String EXCHANGE_NAME = "ai.exchange";
-    public static final String QUEUE_NAME = "ai.message.queue";
-    public static final String ROUTING_KEY = "ai.message";
+    public static final String EXCHANGE_NAME = "sys.exchange";
+    public static final String QUEUE_NAME = "sys.message.queue";
+    public static final String ROUTING_KEY = "sys.message";
 
     @Bean
     public Exchange exchange() {
@@ -33,7 +33,7 @@ public class RabbitMQAiMessageConfig {
     @Bean
     public SimpleMessageConverter converter() {
         SimpleMessageConverter converter = new SimpleMessageConverter();
-        converter.setAllowedListPatterns(List.of("com.losgai.ai.entity.*", "java.util.*"));
+        converter.setAllowedListPatterns(List.of("com.losgai.sys.entity.*", "java.util.*"));
         return converter;
     }
 

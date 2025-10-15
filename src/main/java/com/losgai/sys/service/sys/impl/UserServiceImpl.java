@@ -7,6 +7,7 @@ import com.losgai.sys.dto.LoginDto;
 import com.losgai.sys.entity.sys.User;
 import com.losgai.sys.enums.ResultCodeEnum;
 import com.losgai.sys.mapper.UserMapper;
+import com.losgai.sys.service.sys.FileUploadService;
 import com.losgai.sys.service.sys.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.Date;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +26,8 @@ import java.util.Date;
 public class UserServiceImpl implements UserService {
 
     private final UserMapper userMapper;
+
+    private final FileUploadService fileUploadService;
 
     @Override
     @Description("执行登录的方法")
@@ -61,9 +65,10 @@ public class UserServiceImpl implements UserService {
         // 1.判断对应用户是否存在，防止重复注册
         String idNumber = user.getIdNumber();
         String userPhone = user.getPhone();
+        String licenseNumber = user.getLicenseNumber();
 
         // 身份证号和手机
-        if (userMapper.existsByUsername(idNumber, userPhone) >= 1) {
+        if (userMapper.existsByUsername(idNumber, userPhone,licenseNumber) >= 1) {
             return ResultCodeEnum.USER_NAME_IS_EXISTS;
         }
         // 2.插入用户数据
@@ -86,6 +91,33 @@ public class UserServiceImpl implements UserService {
         // 第1步，先登录上
         StpUtil.login(user.getId(), false);
         return ResultCodeEnum.SUCCESS;
+    }
+
+    @Override
+    public Boolean add(User user) {
+        // 去重查询库中是否有相同手机号、身份证号、驾照编号
+        if (userMapper.existsByUsername(user.getIdNumber(),
+                user.getPhone(),
+                user.getLicenseNumber()) >= 1) {
+            return false;
+        }
+        user.setStatus(1);
+        user.setDeleted(0);
+        user.setCreateTime(Date.from(Instant.now()));
+        user.setUpdateTime(Date.from(Instant.now()));
+        userMapper.insert(user);
+        return true;
+    }
+
+    @Override
+    public void update(User user) {
+        user.setUpdateTime(Date.from(Instant.now()));
+        userMapper.updateByPrimaryKeySelective(user);
+    }
+
+    @Override
+    public List<User> queryByKeyWord(String keyWord) {
+        return userMapper.queryByKeyWord(keyWord);
     }
 
     /**
