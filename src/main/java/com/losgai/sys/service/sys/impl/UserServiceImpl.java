@@ -94,6 +94,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Description("新增用户信息")
     public Boolean add(User user) {
         // 去重查询库中是否有相同手机号、身份证号、驾照编号
         if (userMapper.existsByUsername(user.getIdNumber(),
@@ -110,6 +111,8 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Description("更新用户信息")
+    @CacheEvict(cacheNames = "userInfo", key = "#user.id")
     public void update(User user) {
         user.setUpdateTime(Date.from(Instant.now()));
         userMapper.updateByPrimaryKeySelective(user);
