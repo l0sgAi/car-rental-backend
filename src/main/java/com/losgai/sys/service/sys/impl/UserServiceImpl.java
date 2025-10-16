@@ -6,6 +6,8 @@ import cn.hutool.core.util.StrUtil;
 import com.losgai.sys.dto.LoginDto;
 import com.losgai.sys.entity.sys.User;
 import com.losgai.sys.enums.ResultCodeEnum;
+import com.losgai.sys.mapper.CommentMapper;
+import com.losgai.sys.mapper.RentalOrderMapper;
 import com.losgai.sys.mapper.UserMapper;
 import com.losgai.sys.service.sys.FileUploadService;
 import com.losgai.sys.service.sys.UserService;
@@ -15,6 +17,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Description;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Date;
@@ -27,7 +30,11 @@ public class UserServiceImpl implements UserService {
 
     private final UserMapper userMapper;
 
-    private final FileUploadService fileUploadService;
+    private final RentalOrderMapper rentalOrderMapper;
+
+    private final CommentMapper commentMapper;
+
+    private static final String DEFAULT_PASSWORD = "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92";
 
     @Override
     @Description("执行登录的方法")
@@ -37,13 +44,13 @@ public class UserServiceImpl implements UserService {
 
         // 用户名不为空
         if (StrUtil.isBlank(username)) {
-            return ResultCodeEnum.LOGIN_ERROR;
+            return ResultCodeEnum.BLANK_INPUT;
         }
 
         // 库中查询到用户名
         User user = userMapper.selectByUsername(loginDto.getUsername());
         if (user == null) {
-            return ResultCodeEnum.LOGIN_ERROR;
+            return ResultCodeEnum.DUPLICATED;
         }
 
         // 2.加密密码
@@ -95,32 +102,49 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Description("新增用户信息")
-    public Boolean add(User user) {
+    public ResultCodeEnum add(User user) {
         // 去重查询库中是否有相同手机号、身份证号、驾照编号
         if (userMapper.existsByUsername(user.getIdNumber(),
                 user.getPhone(),
                 user.getLicenseNumber()) >= 1) {
-            return false;
+            return ResultCodeEnum.USER_NAME_IS_EXISTS;
         }
         user.setStatus(1);
         user.setDeleted(0);
+        user.setPassword(DEFAULT_PASSWORD);
         user.setCreateTime(Date.from(Instant.now()));
         user.setUpdateTime(Date.from(Instant.now()));
         userMapper.insert(user);
-        return true;
+        return ResultCodeEnum.SUCCESS;
     }
 
     @Override
     @Description("更新用户信息")
     @CacheEvict(cacheNames = "userInfo", key = "#user.id")
-    public void update(User user) {
+    public ResultCodeEnum update(User user) {
+        // 去重查询库中是否有相同手机号、身份证号、驾照编号
+        if (userMapper.existsByUsername(user.getIdNumber(),
+                user.getPhone(),
+                user.getLicenseNumber()) >= 2) {
+            return ResultCodeEnum.USER_NAME_IS_EXISTS;
+        }
         user.setUpdateTime(Date.from(Instant.now()));
         userMapper.updateByPrimaryKeySelective(user);
+        return ResultCodeEnum.SUCCESS;
     }
 
     @Override
     public List<User> queryByKeyWord(String keyWord) {
         return userMapper.queryByKeyWord(keyWord);
+    }
+
+    @Override
+    @Transactional
+    public ResultCodeEnum delete(Long id) {
+        userMapper.deleteByPrimaryKey(id);
+        userMapper.deleteOrdersByUserId(id);
+        userMapper.deleteCommentsByUserId(id);
+        return ResultCodeEnum.SUCCESS;
     }
 
     /**

@@ -35,6 +35,7 @@
         <include refid="Base_Column_List"/>
         from user
         where id = #{id,jdbcType=BIGINT}
+        and deleted = 0
     </select>
 
     <select id="selectByUsername" resultType="com.losgai.sys.entity.sys.User">
@@ -65,7 +66,7 @@
         )
     </select>
 
-    <select id="queryByKeyWord" resultType="com.losgai.sys.entity.sys.User">
+    <select id="queryByKeyWord" resultMap="BaseResultMap">
         select
         <include refid="Base_Column_List"/>
         from user
@@ -82,9 +83,25 @@
     </select>
 
     <update id="deleteByPrimaryKey" parameterType="java.lang.Long">
+        <!-- 软删除用户 -->
         update user
         set deleted = 1
-        where id = #{id,jdbcType=BIGINT}
+        where id = #{id, jdbcType=BIGINT}
+        and deleted = 0
+    </update>
+
+    <update id="deleteOrdersByUserId" parameterType="java.lang.Long">
+        update rental_order
+        set deleted = 1
+        where user_id = #{userId, jdbcType=BIGINT}
+        and deleted = 0
+    </update>
+
+    <update id="deleteCommentsByUserId" parameterType="java.lang.Long">
+        update comment
+        set deleted = 1
+        where user_id = #{userId, jdbcType=BIGINT}
+        and deleted = 0
     </update>
 
     <insert id="insert" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.sys.User"

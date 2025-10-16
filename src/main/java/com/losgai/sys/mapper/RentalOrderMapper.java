@@ -1,6 +1,7 @@
 package com.losgai.sys.mapper;
 
 import com.losgai.sys.entity.carRental.RentalOrder;
+import org.apache.ibatis.annotations.Mapper;
 
 /**
 * @author miesme
@@ -8,6 +9,7 @@ import com.losgai.sys.entity.carRental.RentalOrder;
 * @createDate 2025-10-14 12:52:33
 * @Entity generator.domain.RentalOrder
 */
+@Mapper
 public interface RentalOrderMapper {
 
     int deleteByPrimaryKey(Long id);

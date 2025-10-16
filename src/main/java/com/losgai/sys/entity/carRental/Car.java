@@ -19,7 +19,6 @@ public class Car implements Serializable {
     /**
     * ID
     */
-    @NotNull(message="[ID]不能为空")
     private Long id;
 
     /**

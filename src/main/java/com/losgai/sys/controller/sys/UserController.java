@@ -77,9 +77,9 @@ public class UserController {
     @PostMapping("/admin/add")
     @Tag(name = "管理员新增用户",description = "新增用户")
     public Result<String> add(@RequestBody @Valid User user) {
-        Boolean success = userService.add(user);
-        if (!success) {
-            return Result.error("添加失败");
+        ResultCodeEnum codeEnum = userService.add(user);
+        if (!Objects.equals(codeEnum.getCode(), ResultCodeEnum.SUCCESS.getCode())) {
+            return Result.info(codeEnum.getCode(),codeEnum.getMessage());
         }
         return Result.success("添加成功");
     }
@@ -88,16 +88,32 @@ public class UserController {
     @PutMapping("/admin/update")
     @Tag(name = "管理员更新用户",description = "更新用户")
     public Result<String> update(@RequestBody @Valid User user) {
-        userService.update(user);
+        ResultCodeEnum codeEnum = userService.update(user);
+        if (!Objects.equals(codeEnum.getCode(), ResultCodeEnum.SUCCESS.getCode())) {
+            return Result.info(codeEnum.getCode(),codeEnum.getMessage());
+        }
         return Result.success("更新成功");
     }
 
-    @SaCheckRole("user")
+    @SaCheckRole("admin")
+    @PutMapping("/admin/delete")
+    @Tag(name = "管理员删除用户",description = "删除用户")
+    public Result<String> delete(@RequestParam Long id) {
+        ResultCodeEnum codeEnum = userService.delete(id);
+        if (!Objects.equals(codeEnum.getCode(), ResultCodeEnum.SUCCESS.getCode())) {
+            return Result.info(codeEnum.getCode(),codeEnum.getMessage());
+        }
+        return Result.success("删除成功");
+    }
+
     @PutMapping("/user/update")
     @Tag(name = "用户自更新个人信息",description = "更新个人信息")
     public Result<String> updateSelf(@RequestBody @Valid User user) {
         user.setId(StpUtil.getLoginIdAsLong());
-        userService.update(user);
+        ResultCodeEnum codeEnum = userService.update(user);
+        if (!Objects.equals(codeEnum.getCode(), ResultCodeEnum.SUCCESS.getCode())) {
+            return Result.info(codeEnum.getCode(),codeEnum.getMessage());
+        }
         return Result.success("更新成功");
     }
 

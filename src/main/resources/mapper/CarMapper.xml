@@ -45,13 +45,47 @@
         select
         <include refid="Base_Column_List" />
         from car
-        where  id = #{id} 
+        where  id = #{id}
+        and deleted = 0
     </select>
 
-    <delete id="deleteByPrimaryKey" parameterType="java.lang.Long">
-        delete from car
-        where  id = #{id} 
-    </delete>
+    <select id="queryByKeyWord" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List" />
+        from car
+        <where>
+            deleted = 0
+            <if test="keyWord != null and keyWord.trim() != ''">
+                and (name like concat('%',#{keyWord,jdbcType=VARCHAR},'%')
+                or number like concat('%',#{keyWord,jdbcType=VARCHAR},'%')
+                )
+            </if>
+        </where>
+        order by create_time desc
+    </select>
+
+    <update id="deleteByPrimaryKey" parameterType="java.lang.Long">
+        update car
+        set deleted = 1
+        where id = #{id}
+        and deleted = 0
+    </update>
+
+    <update id="deleteOrdersByCarId" parameterType="java.lang.Long">
+        update rental_order
+        set deleted = 1
+        where car_id = #{id}
+        and deleted = 0
+    </update>
+
+    <update id="deleteCommentsByCarId" parameterType="java.lang.Long">
+        update comment
+        set deleted = 1
+        where car_id = #{id}
+        and deleted = 0
+    </update>
+
+
     <insert id="insert" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.Car" useGeneratedKeys="true">
         insert into car
         ( id,brand_id,name,number,min_rental_days,daily_rent,car_type,
@@ -203,7 +237,8 @@
                     deleted = #{deleted},
                 </if>
         </set>
-        where   id = #{id} 
+        where   id = #{id}
+        and deleted = 0
     </update>
     <update id="updateByPrimaryKey" parameterType="com.losgai.sys.entity.carRental.Car">
         update car
@@ -233,6 +268,7 @@
             create_time =  #{createTime},
             update_time =  #{updateTime},
             deleted =  #{deleted}
-        where   id = #{id} 
+        where   id = #{id}
+        and deleted = 0
     </update>
 </mapper>

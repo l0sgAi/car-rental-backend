@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.losgai.sys.mapper.BrandMapper">
+
+    <resultMap id="BaseResultMap" type="com.losgai.sys.entity.carRental.Brand">
+            <id property="id" column="id" />
+            <result property="name" column="name" />
+            <result property="logo" column="logo" />
+            <result property="descript" column="descript" />
+            <result property="deleted" column="deleted" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,name,logo,descript,deleted
+    </sql>
+
+    <select id="selectByPrimaryKey" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List" />
+        from brand
+        where  id = #{id}
+        and deleted = 0
+    </select>
+
+    <select id="queryByKeyWord" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List" />
+        from brand
+        <where>
+            deleted = 0
+            <if test="keyWord != null and keyWord.trim() != ''">
+                and name like concat('%',#{keyWord,jdbcType=VARCHAR},'%')
+            </if>
+        </where>
+    </select>
+
+    <delete id="deleteByPrimaryKey" parameterType="java.lang.Long">
+        delete from brand
+        where  id = #{id} 
+    </delete>
+    <insert id="insert" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.Brand" useGeneratedKeys="true">
+        insert into brand
+        ( id,name,logo,descript,deleted)
+        values (#{id},#{name},#{logo},#{descript},#{deleted})
+    </insert>
+    <insert id="insertSelective" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.Brand" useGeneratedKeys="true">
+        insert into brand
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+                <if test="id != null">id,</if>
+                <if test="name != null">name,</if>
+                <if test="logo != null">logo,</if>
+                <if test="descript != null">descript,</if>
+                <if test="deleted != null">deleted,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+                <if test="id != null">#{id},</if>
+                <if test="name != null">#{name},</if>
+                <if test="logo != null">#{logo},</if>
+                <if test="descript != null">#{descript},</if>
+                <if test="deleted != null">#{deleted},</if>
+        </trim>
+    </insert>
+    <update id="updateByPrimaryKeySelective" parameterType="com.losgai.sys.entity.carRental.Brand">
+        update brand
+        <set>
+                <if test="name != null">
+                    name = #{name},
+                </if>
+                <if test="logo != null">
+                    logo = #{logo},
+                </if>
+                <if test="descript != null">
+                    descript = #{descript},
+                </if>
+                <if test="deleted != null">
+                    deleted = #{deleted},
+                </if>
+        </set>
+        where   id = #{id} 
+    </update>
+    <update id="updateByPrimaryKey" parameterType="com.losgai.sys.entity.carRental.Brand">
+        update brand
+        set 
+            name =  #{name},
+            logo =  #{logo},
+            descript =  #{descript},
+            deleted =  #{deleted}
+        where   id = #{id} 
+    </update>
+</mapper>

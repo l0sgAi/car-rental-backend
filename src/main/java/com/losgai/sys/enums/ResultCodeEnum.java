@@ -10,6 +10,8 @@ public enum ResultCodeEnum {
     LOGIN_ERROR(201 , "用户名或者密码错误"),
     VALIDATE_CODE_ERROR(202 , "验证码错误") ,
     LOGIN_AUTH(208 , "用户未登录"),
+    DUPLICATED(205 , "身份证、驾驶证或手机号重复"),
+    BLANK_INPUT(206 , "空的用户名或密码"),
     USER_NAME_IS_EXISTS(209 , "邮箱/手机号已经存在"),
     SYSTEM_ERROR(9999 , "您的网络有问题请稍后重试"),
     DATA_ERROR(204, "数据异常"),

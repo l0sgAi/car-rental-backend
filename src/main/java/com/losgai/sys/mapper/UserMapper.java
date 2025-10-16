@@ -17,6 +17,10 @@ public interface UserMapper {
 
     int deleteByPrimaryKey(Long id);
 
+    int deleteOrdersByUserId(Long id);
+
+    int deleteCommentsByUserId(Long id);
+
     int insert(User record);
 
     int insertSelective(User record);
@@ -40,4 +44,5 @@ public interface UserMapper {
                          @Param("licenseNumber") String licenseNumber);
 
     List<User> queryByKeyWord(String keyWord);
+
 }

@@ -14,9 +14,11 @@ public interface UserService {
 
     User getUserInfo();
 
-    Boolean add(User user);
+    ResultCodeEnum add(User user);
 
-    void update(User user);
+    ResultCodeEnum update(User user);
 
     List<User> queryByKeyWord(String keyWord);
+
+    ResultCodeEnum delete(Long id);
 }

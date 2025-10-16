@@ -28,6 +28,14 @@ public class Result<T> {
         result.setMessage(message);
         return result;
     }
+
+    public static <T> Result<T> info(Integer code, String message) {
+        Result<T> result = new Result<>();
+        result.setCode(code);
+        result.setMessage(message);
+        return result;
+    }
+
     // 新增分页返回方法
     public static <T> Result<T> page(T data, long count) {
         Result<T> result = new Result<>();

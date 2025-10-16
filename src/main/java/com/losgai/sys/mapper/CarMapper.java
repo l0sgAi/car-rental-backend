@@ -2,6 +2,9 @@ package com.losgai.sys.mapper;
 
 
 import com.losgai.sys.entity.carRental.Car;
+import org.apache.ibatis.annotations.Mapper;
+
+import java.util.List;
 
 /**
 * @author miesme
@@ -9,9 +12,14 @@ import com.losgai.sys.entity.carRental.Car;
 * @createDate 2025-10-14 12:52:33
 * @Entity generator.domain.Car
 */
+@Mapper
 public interface CarMapper {
 
     int deleteByPrimaryKey(Long id);
+
+    int deleteOrdersByCarId(Long id);
+
+    int deleteCommentsByCarId(Long id);
 
     int insert(Car record);
 
@@ -23,4 +31,5 @@ public interface CarMapper {
 
     int updateByPrimaryKey(Car record);
 
+    List<Car> queryByKeyWord(String keyWord);
 }
