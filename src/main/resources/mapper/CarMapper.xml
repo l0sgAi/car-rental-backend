@@ -49,12 +49,15 @@
         and deleted = 0
     </select>
 
-    <select id="queryByKeyWord" resultMap="BaseResultMap">
+    <select id="query" resultMap="BaseResultMap">
         select
         <include refid="Base_Column_List" />
         from car
         <where>
             deleted = 0
+            <if test="status != null">
+                and status = #{status}
+            </if>
             <if test="keyWord != null and keyWord.trim() != ''">
                 and (name like concat('%',#{keyWord,jdbcType=VARCHAR},'%')
                 or number like concat('%',#{keyWord,jdbcType=VARCHAR},'%')

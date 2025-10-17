@@ -1,18 +1,13 @@
 package com.losgai.sys.controller.rental;
 
 import cn.dev33.satoken.annotation.SaCheckRole;
-import cn.dev33.satoken.stp.SaTokenInfo;
-import cn.dev33.satoken.stp.StpUtil;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.losgai.sys.common.sys.Result;
 import com.losgai.sys.dto.CarSearchParam;
-import com.losgai.sys.dto.LoginDto;
 import com.losgai.sys.entity.carRental.Car;
-import com.losgai.sys.entity.sys.User;
 import com.losgai.sys.enums.ResultCodeEnum;
 import com.losgai.sys.service.rental.CarService;
-import com.losgai.sys.service.sys.UserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -67,13 +62,14 @@ public class CarController {
     @GetMapping("/admin/list")
     @Tag(name = "获取所有车辆信息", description = "分页获取当前所有车辆信息")
     public Result<List<Car>> query(
+            @RequestParam(required = false) Integer status,
             @RequestParam(required = false) String keyWord,
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize) {
         // 开启分页
         PageHelper.startPage(pageNum, pageSize);
         // 执行查询
-        List<Car> list = carService.queryByKeyWord(keyWord);
+        List<Car> list = carService.query(keyWord,status);
         // 获取分页信息
         PageInfo<Car> pageInfo = new PageInfo<>(list);
         // 使用自定义分页返回方法

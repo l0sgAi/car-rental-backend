@@ -9,7 +9,6 @@ import co.elastic.clients.elasticsearch._types.query_dsl.*;
 import co.elastic.clients.elasticsearch.core.*;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import co.elastic.clients.elasticsearch.core.search.Hit;
-import co.elastic.clients.json.JsonData;
 import com.losgai.sys.config.RabbitMQAiMessageConfig;
 import com.losgai.sys.dto.CarDocument;
 import com.losgai.sys.dto.CarSearchParam;
@@ -44,8 +43,8 @@ public class CarServiceImpl implements CarService {
     private final Sender sender;
 
     @Override
-    public List<Car> queryByKeyWord(String keyWord) {
-        return carMapper.queryByKeyWord(keyWord);
+    public List<Car> query(String keyWord,Integer status) {
+        return carMapper.query(keyWord,status);
     }
 
     @Override

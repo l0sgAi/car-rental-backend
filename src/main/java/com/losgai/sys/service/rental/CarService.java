@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface CarService {
 
-    List<Car> queryByKeyWord(String keyWord);
+    List<Car> query(String keyWord, Integer status);
 
     List<Car> globalQuery(CarSearchParam carSearchParam);
 
