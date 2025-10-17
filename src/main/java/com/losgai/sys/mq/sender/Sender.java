@@ -28,4 +28,9 @@ public class Sender {
     public void sendCars(String exchange, String routingKey, List<Car> cars) {
         rabbitTemplate.convertAndSend(exchange, routingKey, cars);
     }
+
+    // 发送车辆文档删除信息
+    public void sendCarDelete(String exchange, String routingKey, Long id) {
+        rabbitTemplate.convertAndSend(exchange, routingKey, id);
+    }
 }

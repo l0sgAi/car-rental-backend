@@ -23,8 +23,13 @@ public class RabbitMQAiMessageConfig {
     public static final String QUEUE_NAME_CAR_BATCH = "sys.cars.queue";
     public static final String ROUTING_KEY_CAR_BATCH = "sys.cars";
 
+    // 单个更新
     public static final String QUEUE_NAME_CAR_UPDATE = "sys.car.update.queue";
     public static final String ROUTING_KEY_CAR_UPDATE = "sys.car.update";
+
+    // 单个删除
+    public static final String QUEUE_NAME_CAR_DEL = "sys.car.delete.queue";
+    public static final String ROUTING_KEY_CAR_DEL = "sys.car.delete";
 
     // 声明交换机
     @Bean
@@ -54,6 +59,11 @@ public class RabbitMQAiMessageConfig {
         return QueueBuilder.durable(QUEUE_NAME_CAR_UPDATE).build();
     }
 
+    @Bean
+    public Queue carDeleteQueue() {
+        return QueueBuilder.durable(QUEUE_NAME_CAR_DEL).build();
+    }
+
     // 第一个绑定：sys.message -> sys.message.queue
     @Bean
     public Binding bindingMessage(Queue messageQueue, DirectExchange exchange) {
@@ -74,6 +84,11 @@ public class RabbitMQAiMessageConfig {
     @Bean
     public Binding bindingCarUpdate(Queue carQueue, DirectExchange exchange) {
         return BindingBuilder.bind(carUpdateQueue()).to(exchange).with(ROUTING_KEY_CAR_UPDATE);
+    }
+
+    @Bean
+    public Binding bindingCarDelete(Queue carQueue, DirectExchange exchange) {
+        return BindingBuilder.bind(carDeleteQueue()).to(exchange).with(ROUTING_KEY_CAR_DEL);
     }
 
     // 反序列化配置

@@ -92,9 +92,9 @@ public class CarController {
         return Result.success("上架成功");
     }
 
-    @GetMapping("/globalQuery")
+    @PostMapping("/globalQuery")
     @Tag(name = "获取所有车辆信息", description = "通过查询/筛选获取当前车辆信息")
-    public Result<List<Car>> globalQuery(CarSearchParam carSearchParam) {
+    public Result<List<Car>> globalQuery(@RequestBody CarSearchParam carSearchParam) {
         return Result.success(carService.globalQuery(carSearchParam));
     }
 

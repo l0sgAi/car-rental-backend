@@ -2,14 +2,14 @@ package com.losgai.sys.service.rental.impl;
 
 import cn.hutool.core.util.StrUtil;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.Result;
 import co.elastic.clients.elasticsearch._types.SortOptions;
 import co.elastic.clients.elasticsearch._types.SortOrder;
-import co.elastic.clients.elasticsearch._types.query_dsl.Operator;
-import co.elastic.clients.elasticsearch._types.query_dsl.Query;
-import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType;
+import co.elastic.clients.elasticsearch._types.query_dsl.*;
 import co.elastic.clients.elasticsearch.core.*;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import co.elastic.clients.elasticsearch.core.search.Hit;
+import co.elastic.clients.json.JsonData;
 import com.losgai.sys.config.RabbitMQAiMessageConfig;
 import com.losgai.sys.dto.CarDocument;
 import com.losgai.sys.dto.CarSearchParam;
@@ -99,6 +99,11 @@ public class CarServiceImpl implements CarService {
             sender.sendCar(RabbitMQAiMessageConfig.EXCHANGE_NAME,
                     RabbitMQAiMessageConfig.ROUTING_KEY_CAR_UPDATE,
                     car);
+        } else if (car.getStatus() == 1) {
+            // 通过消息队列，删除ES中的文档
+            sender.sendCarDelete(RabbitMQAiMessageConfig.EXCHANGE_NAME,
+                    RabbitMQAiMessageConfig.ROUTING_KEY_CAR_DEL,
+                    car.getId());
         }
         return ResultCodeEnum.SUCCESS;
     }
@@ -109,6 +114,10 @@ public class CarServiceImpl implements CarService {
         carMapper.deleteByPrimaryKey(id);
         carMapper.deleteOrdersByCarId(id);
         carMapper.deleteCommentsByCarId(id);
+        // 通过消息队列，删除ES中的文档
+        sender.sendCarDelete(RabbitMQAiMessageConfig.EXCHANGE_NAME,
+                RabbitMQAiMessageConfig.ROUTING_KEY_CAR_DEL,
+                id);
         return ResultCodeEnum.SUCCESS;
     }
 
@@ -194,6 +203,41 @@ public class CarServiceImpl implements CarService {
     }
 
     /**
+     * 根据文档ID从Elasticsearch删除单条文档，返回状态true/false
+     *
+     * @param indexName 索引名称
+     * @param docId     要删除的文档ID
+     * @return 操作是否成功 (删除成功或文档本不存在都返回true)
+     * @throws IOException ES连接或操作异常
+     */
+    @Override
+    @Description("根据文档ID从Elasticsearch删除单条文档，返回状态true/false")
+    public boolean deleteESDoc(String indexName, String docId) throws IOException {
+        // 1. 构建删除请求
+        DeleteRequest deleteRequest = DeleteRequest.of(d -> d
+                .index(indexName)
+                .id(docId)
+        );
+
+        // 2. 执行删除操作
+        DeleteResponse response = esClient.delete(deleteRequest);
+
+        // 3. 根据响应结果判断并记录日志
+        if (response.result() == Result.Deleted) {
+            log.info("文档删除成功, Index: {}, ID: {}, 状态: {}", indexName, response.id(), response.result().jsonValue());
+            return true;
+        } else if (response.result() == Result.NotFound) {
+            // 如果文档不存在，也认为操作达到了目的（确保其不存在），返回true
+            log.warn("尝试删除的文档不存在, Index: {}, ID: {}, 状态: {}", indexName, response.id(), response.result().jsonValue());
+            return true;
+        } else {
+            // 其他情况，如版本冲突等，视为失败
+            log.error("文档删除失败, Index: {}, ID: {}, 状态: {}", indexName, response.id(), response.result().jsonValue());
+            return false;
+        }
+    }
+
+    /**
      * 构建ES查询请求
      */
     private SearchRequest buildSearchRequest(CarSearchParam param) {
@@ -209,27 +253,93 @@ public class CarServiceImpl implements CarService {
      * 构建查询条件
      */
     private Query buildQuery(CarSearchParam param) {
-        String keyWord = param.getKeyWord();
+        // 1. 创建一个Bool查询构建器，这是组合所有条件的核心
+        BoolQuery.Builder boolQueryBuilder = new BoolQuery.Builder();
 
-        // 如果没有关键字，返回match_all查询
-        if (StrUtil.isBlank(keyWord)) {
+        // 2. 处理关键字搜索 (放入 must 子句，影响评分)
+        String keyWord = param.getKeyWord();
+        if (StrUtil.isNotBlank(keyWord)) {
+            // 如果有关键字，构建 multi_match 查询
+            Query multiMatchQuery = Query.of(q -> q
+                    .multiMatch(m -> m
+                            .query(keyWord)
+                            .fields("name^3", "number^2", "carType", "powerType")
+                            .type(TextQueryType.BestFields)
+                            .operator(Operator.Or)
+                    )
+            );
+            // 将 multi_match 查询添加到 bool 查询的 must 子句中
+            boolQueryBuilder.must(multiMatchQuery);
+        } else {
+            boolQueryBuilder.must(q -> q.matchAll(m -> m));
+        }
+
+        // 3. 处理筛选条件 (放入 filter 子句，不影响评分，且性能更好)
+        List<Query> filterQueries = new ArrayList<>();
+
+        // 筛选 - 车型 (carType)
+        if (StrUtil.isNotBlank(param.getCarType())) {
+            filterQueries.add(Query.of(q -> q
+                    .term(t -> t
+                            .field("carType") // 假设 carType 在ES中是 keyword 类型
+                            .value(param.getCarType())
+                    )
+            ));
+        }
+
+        // 筛选 - 动力类型 (powerType)
+        if (StrUtil.isNotBlank(param.getPowerType())) {
+            filterQueries.add(Query.of(q -> q
+                    .term(t -> t
+                            .field("powerType") // 假设 powerType 在ES中是 keyword 类型
+                            .value(param.getPowerType())
+                    )
+            ));
+        }
+
+        // 筛选 - 品牌ID (brandId) - 虽然你没问，但你的参数里有，这是一个很常见的筛选
+        if (param.getBrandId() != null) {
+            filterQueries.add(Query.of(q -> q
+                    .term(t -> t
+                            .field("brandId")
+                            .value(param.getBrandId())
+                    )
+            ));
+        }
+
+        // 筛选 - 价格区间 (dailyRent)
+        Integer minPrice = param.getMinimPrice();
+        Integer maxPrice = param.getMaxPrice();
+
+        // 只有在最小或最大价格至少有一个存在时，才添加范围查询
+        if (minPrice != null || maxPrice != null) {
+            RangeQuery.Builder rangeQueryBuilder = new RangeQuery.Builder();
+            rangeQueryBuilder.number(n -> {
+                n.field("dailyRent");
+                if (minPrice != null) {
+                    n.gte(Double.valueOf(minPrice));
+                }
+                if (maxPrice != null) {
+                    n.lte(Double.valueOf(maxPrice));
+                }
+                return n;
+            });
+            filterQueries.add(new Query(rangeQueryBuilder.build()));
+        }
+
+        // 4. 将所有筛选条件添加到 bool 查询的 filter 子句中
+        if (!filterQueries.isEmpty()) {
+            boolQueryBuilder.filter(filterQueries);
+        }
+
+        // 如果没有任何 must 或 filter 条件，一个空的 bool 查询等价于 match_all
+        // 如果只有一个空的 keyword，但有 filter 条件，它将只执行过滤，这是正确的行为
+        if (StrUtil.isBlank(keyWord) && filterQueries.isEmpty()) {
             return Query.of(q -> q.matchAll(m -> m));
         }
 
-        // 使用multi_match进行多字段搜索
-        return Query.of(q -> q
-                .multiMatch(m -> m
-                        .query(keyWord)
-                        .fields(
-                                "name^3",      // name字段权重最高(boost=3)
-                                "number^2",    // 车牌号权重次之(boost=2)
-                                "carType",     // 车辆类型
-                                "powerType"    // 动力类型
-                        )
-                        .type(TextQueryType.BestFields)  // 使用最佳字段匹配
-                        .operator(Operator.Or)            // 使用OR操作符
-                )
-        );
+        // 5. 构建并返回最终的 Bool 查询
+        return Query.of(q -> q.bool(boolQueryBuilder.build()));
     }
 
     /**

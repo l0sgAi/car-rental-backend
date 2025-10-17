@@ -78,12 +78,30 @@ public class AiMessageConsumer {
     }
 
     @RabbitListener(queues = RabbitMQAiMessageConfig.QUEUE_NAME_CAR_UPDATE)
-    @Description("接收多个车辆信息")
+    @Description("更新多个车辆信息")
     public void receiveCarMessageUpdate(Car message) {
         log.info("[MQ]消费者收到消息：{}", message);
         boolean result;
         try {
             result = carService.updateESDoc(EsConstants.INDEX_NAME_CAR_RENTAL, message);
+            if (result) {
+                log.info("[MQ]成功批量插入 ES");
+            } else {
+                log.warn("[MQ]批量插入 ES 失败");
+            }
+        } catch (IOException e) {
+            log.error("[MQ]批量插入 ES 异常", e);
+        }
+
+    }
+
+    @RabbitListener(queues = RabbitMQAiMessageConfig.QUEUE_NAME_CAR_DEL)
+    @Description("删除车辆信息")
+    public void receiveCarMessageDelete(Long message) {
+        log.info("[MQ]消费者收到消息：{}", message);
+        boolean result;
+        try {
+            result = carService.deleteESDoc(EsConstants.INDEX_NAME_CAR_RENTAL, String.valueOf(message));
             if (result) {
                 log.info("[MQ]成功批量插入 ES");
             } else {
