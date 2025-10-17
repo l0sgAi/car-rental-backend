@@ -32,4 +32,6 @@ public interface CarMapper {
     int updateByPrimaryKey(Car record);
 
     List<Car> queryByKeyWord(String keyWord);
+
+    List<Car> getAllCanRentCars();
 }

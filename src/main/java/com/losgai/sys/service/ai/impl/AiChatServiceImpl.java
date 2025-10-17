@@ -1,6 +1,7 @@
 package com.losgai.sys.service.ai.impl;
 
 import cn.hutool.core.util.StrUtil;
+import com.losgai.sys.config.RabbitMQAiMessageConfig;
 import com.losgai.sys.dto.AiChatParamDTO;
 import com.losgai.sys.entity.ai.AiConfig;
 import com.losgai.sys.entity.ai.AiMessagePair;
@@ -10,7 +11,7 @@ import com.losgai.sys.global.SseEmitterManager;
 import com.losgai.sys.mapper.AiConfigMapper;
 import com.losgai.sys.mapper.AiMessagePairMapper;
 import com.losgai.sys.mapper.AiSessionMapper;
-import com.losgai.sys.mq.sender.AiMessageSender;
+import com.losgai.sys.mq.sender.Sender;
 import com.losgai.sys.service.ai.AiChatService;
 import com.losgai.sys.util.ModelBuilderSpringAiWithMemo;
 import lombok.RequiredArgsConstructor;
@@ -45,7 +46,7 @@ public class AiChatServiceImpl implements AiChatService {
 
     private final AiSessionMapper aiSessionMapper;
 
-    private final AiMessageSender aiMessageSender;
+    private final Sender sender;
 
     /**
      * @param aiChatParamDTO 对话参数
@@ -177,7 +178,7 @@ public class AiChatServiceImpl implements AiChatService {
                                 // 新增部分：消息队列发送
                                 // exchange 是交换机，决定消息往哪里发。
                                 // routingKey 是路由键，告诉交换机这条消息具体发给哪个队列。
-                                aiMessageSender.sendMessage("ai.exchange", "ai.message", aiMessagePairMapper.selectBySseSessionId(sessionId));
+                                sender.sendMessage(RabbitMQAiMessageConfig.EXCHANGE_NAME, RabbitMQAiMessageConfig.ROUTING_KEY, aiMessagePairMapper.selectBySseSessionId(sessionId));
                             });
             return true;
         }, Executors.newVirtualThreadPerTaskExecutor());

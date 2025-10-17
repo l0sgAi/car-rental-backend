@@ -7,6 +7,7 @@ public enum ResultCodeEnum {
 
     SUCCESS(200 , "操作成功") ,
     SERVICE_ERROR(500, "内部错误"),
+    ELASTIC_ERROR(510, "Elasticsearch错误"),
     LOGIN_ERROR(201 , "用户名或者密码错误"),
     VALIDATE_CODE_ERROR(202 , "验证码错误") ,
     LOGIN_AUTH(208 , "用户未登录"),

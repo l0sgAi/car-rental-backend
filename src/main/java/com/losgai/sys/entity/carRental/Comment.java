@@ -46,6 +46,12 @@ public class Comment implements Serializable {
     @Size(max= 1024,message="编码长度不能超过1024")
     @Length(max= 1024,message="编码长度不能超过1,024")
     private String content;
+
+    /**
+     * 点赞数量
+     * */
+    @NotNull(message="[点赞数量]不能为空")
+    private Integer likeCount = 0;
     /**
     * 创建时间
     */

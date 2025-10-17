@@ -64,6 +64,14 @@
         order by create_time desc
     </select>
 
+    <select id="getAllCanRentCars" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List" />
+        from car
+        where deleted = 0
+        and status = 0
+    </select>
+
     <update id="deleteByPrimaryKey" parameterType="java.lang.Long">
         update car
         set deleted = 1

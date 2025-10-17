@@ -1,18 +1,13 @@
 package com.losgai.sys.controller.rental;
 
 import cn.dev33.satoken.annotation.SaCheckRole;
-import cn.dev33.satoken.stp.SaTokenInfo;
-import cn.dev33.satoken.stp.StpUtil;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.losgai.sys.common.sys.Result;
 import com.losgai.sys.dto.CarSearchParam;
-import com.losgai.sys.dto.LoginDto;
 import com.losgai.sys.entity.carRental.Car;
-import com.losgai.sys.entity.sys.User;
 import com.losgai.sys.enums.ResultCodeEnum;
 import com.losgai.sys.service.rental.CarService;
-import com.losgai.sys.service.sys.UserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,9 +19,9 @@ import java.util.Objects;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/rental/car")
+@RequestMapping("/rental/order")
 @Slf4j
-public class CarController {
+public class OrderController {
 
     private final CarService carService;
 

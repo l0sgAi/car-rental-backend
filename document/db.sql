@@ -111,6 +111,7 @@ CREATE TABLE `comment`
     `follow_comment_id` bigint unsigned NOT NULL DEFAULT '0' COMMENT '回复评论id,默认0即非回复评论',
 
     `content`           varchar(1024)   NOT NULL COMMENT '评论内容',
+    `like_count`        int unsigned    NOT NULL DEFAULT '0' COMMENT '点赞数',
 
     `create_time`       datetime        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time`       datetime        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
