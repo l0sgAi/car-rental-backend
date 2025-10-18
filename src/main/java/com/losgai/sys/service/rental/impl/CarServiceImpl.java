@@ -1,5 +1,6 @@
 package com.losgai.sys.service.rental.impl;
 
+import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.Result;
@@ -22,6 +23,9 @@ import com.losgai.sys.util.ElasticsearchIndexUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Description;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +34,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -41,6 +46,13 @@ public class CarServiceImpl implements CarService {
     private final ElasticsearchClient esClient;
 
     private final Sender sender;
+
+    private final String HOT_KEY_PREFIX = "car:hot:";
+    private final String HOT_SYNC_SET = "car:hot:sync";
+
+    private final RedisTemplate<String, Object> redisTemplate;
+
+    private final StringRedisTemplate stringRedisTemplate;
 
     @Override
     public List<Car> query(String keyWord,Integer status) {
@@ -233,6 +245,46 @@ public class CarServiceImpl implements CarService {
             // 其他情况，如版本冲突等，视为失败
             log.error("文档删除失败, Index: {}, ID: {}, 状态: {}", indexName, response.id(), response.result().jsonValue());
             return false;
+        }
+    }
+
+    @Override
+    public Car getCarById(Long id) {
+        Car car = carMapper.selectByPrimaryKey(id);
+
+        // Redis 累加热度（最大 50000）
+        String key = HOT_KEY_PREFIX + id;
+        Long currentHot = redisTemplate.opsForValue().increment(key, 1);
+
+        if (currentHot != null && currentHot <= 50000) {
+            redisTemplate.opsForSet().add(HOT_SYNC_SET, id); // 标记这个ID待同步
+        }
+
+        return car;
+    }
+
+    // 定时任务，每 15 秒同步一次热度
+    @Scheduled(fixedDelay = 15000)
+    public void syncHotScore() {
+        Set<Object> carIds = redisTemplate.opsForSet().members(HOT_SYNC_SET);
+        if (carIds == null || carIds.isEmpty()) return;
+
+        for (Object idObj : carIds) {
+            Long carId = Long.valueOf(idObj.toString());
+            String key = HOT_KEY_PREFIX + carId;
+            Object hotObj = redisTemplate.opsForValue().get(key);
+            if (hotObj == null) continue;
+            // 要新增的hotScore
+            int hot = Integer.parseInt(hotObj.toString());
+            carMapper.updateHotScore(carId, hot); // 批量更新热度
+            // 同时还要更新ES
+            Car car = carMapper.selectByPrimaryKey(carId);
+            sender.sendCar(RabbitMQAiMessageConfig.EXCHANGE_NAME,
+                    RabbitMQAiMessageConfig.ROUTING_KEY_CAR_UPDATE,car);
+
+            log.info("同步热度, carId: {}, hot: {}", carId, hot);
+
+            redisTemplate.opsForSet().remove(HOT_SYNC_SET, carId);
         }
     }
 

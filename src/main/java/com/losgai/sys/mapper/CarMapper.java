@@ -34,4 +34,6 @@ public interface CarMapper {
     List<Car> query(String keyWord, Integer status);
 
     List<Car> getAllCanRentCars();
+
+    void updateHotScore(Long carId, Integer hot);
 }

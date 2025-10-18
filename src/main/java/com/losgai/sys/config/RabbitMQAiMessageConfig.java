@@ -31,6 +31,10 @@ public class RabbitMQAiMessageConfig {
     public static final String QUEUE_NAME_CAR_DEL = "sys.car.delete.queue";
     public static final String ROUTING_KEY_CAR_DEL = "sys.car.delete";
 
+    // 单个删除
+    public static final String QUEUE_NAME_COMMENT_CENSOR = "sys.comment.censor.queue";
+    public static final String ROUTING_KEY_COMMENT_CENSOR = "sys.comment.censor";
+
     // 声明交换机
     @Bean
     public DirectExchange exchange() {
@@ -64,6 +68,11 @@ public class RabbitMQAiMessageConfig {
         return QueueBuilder.durable(QUEUE_NAME_CAR_DEL).build();
     }
 
+    @Bean
+    public Queue commentCensorQueue() {
+        return QueueBuilder.durable(QUEUE_NAME_COMMENT_CENSOR).build();
+    }
+
     // 第一个绑定：sys.message -> sys.message.queue
     @Bean
     public Binding bindingMessage(Queue messageQueue, DirectExchange exchange) {
@@ -77,18 +86,23 @@ public class RabbitMQAiMessageConfig {
     }
 
     @Bean
-    public Binding bindingCars(Queue carQueue, DirectExchange exchange) {
-        return BindingBuilder.bind(carsQueue()).to(exchange).with(ROUTING_KEY_CAR_BATCH);
+    public Binding bindingCars(Queue carsQueue, DirectExchange exchange) {
+        return BindingBuilder.bind(carsQueue).to(exchange).with(ROUTING_KEY_CAR_BATCH);
     }
 
     @Bean
-    public Binding bindingCarUpdate(Queue carQueue, DirectExchange exchange) {
-        return BindingBuilder.bind(carUpdateQueue()).to(exchange).with(ROUTING_KEY_CAR_UPDATE);
+    public Binding bindingCarUpdate(Queue carUpdateQueue, DirectExchange exchange) {
+        return BindingBuilder.bind(carUpdateQueue).to(exchange).with(ROUTING_KEY_CAR_UPDATE);
     }
 
     @Bean
-    public Binding bindingCarDelete(Queue carQueue, DirectExchange exchange) {
-        return BindingBuilder.bind(carDeleteQueue()).to(exchange).with(ROUTING_KEY_CAR_DEL);
+    public Binding bindingCarDelete(Queue carDeleteQueue, DirectExchange exchange) {
+        return BindingBuilder.bind(carDeleteQueue).to(exchange).with(ROUTING_KEY_CAR_DEL);
+    }
+
+    @Bean
+    public Binding bindingCommentCensor(Queue commentCensorQueue, DirectExchange exchange) {
+        return BindingBuilder.bind(commentCensorQueue).to(exchange).with(ROUTING_KEY_COMMENT_CENSOR);
     }
 
     // 反序列化配置

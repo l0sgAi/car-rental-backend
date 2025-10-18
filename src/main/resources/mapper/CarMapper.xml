@@ -282,4 +282,11 @@
         where   id = #{id}
         and deleted = 0
     </update>
+
+    <update id="updateHotScore">
+        UPDATE car
+        SET hot_score = GREATEST(0, LEAST(hot_score + #{hot}, 50000))
+        WHERE id = #{carId}
+        AND deleted = 0
+    </update>
 </mapper>

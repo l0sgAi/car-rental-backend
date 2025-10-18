@@ -1,7 +1,11 @@
 package com.losgai.sys.mapper;
 
 import com.losgai.sys.entity.carRental.Comment;
+import com.losgai.sys.vo.CommentVo;
+import com.losgai.sys.vo.TopCommentVo;
 import org.apache.ibatis.annotations.Mapper;
+
+import java.util.List;
 
 /**
 * @author miesme
@@ -24,4 +28,11 @@ public interface CommentMapper {
 
     int updateByPrimaryKey(Comment record);
 
+    List<TopCommentVo> query(String keyWord);
+
+    List<TopCommentVo> queryVoByCarId(Long carId);
+
+    List<CommentVo> queryVoByIds(List<Long> ids);
+
+    List<CommentVo> loadReplyByCommentId(Long id);
 }

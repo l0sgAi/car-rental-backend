@@ -13,7 +13,7 @@ import com.losgai.sys.mapper.AiMessagePairMapper;
 import com.losgai.sys.mapper.AiSessionMapper;
 import com.losgai.sys.mq.sender.Sender;
 import com.losgai.sys.service.ai.AiChatService;
-import com.losgai.sys.util.ModelBuilderSpringAiWithMemo;
+import com.losgai.sys.util.ModelBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.metadata.Usage;
@@ -42,7 +42,7 @@ public class AiChatServiceImpl implements AiChatService {
 
     private final AiConfigMapper aiConfigMapper;
 
-    private final ModelBuilderSpringAiWithMemo modelBuilderSpringAiWithMemo;
+    private final ModelBuilder modelBuilder;
 
     private final AiSessionMapper aiSessionMapper;
 
@@ -88,7 +88,7 @@ public class AiChatServiceImpl implements AiChatService {
             if (conversationId == null) {
                 return false;
             }
-            Flux<ChatResponse> chatResponseFlux = modelBuilderSpringAiWithMemo.buildModelStreamWithMemo(aiConfig,
+            Flux<ChatResponse> chatResponseFlux = modelBuilder.buildModelStreamWithMemo(aiConfig,
                     aiChatParamDTO.getUrlList(),
                     "你是一个友善的AI助手",
                     aiChatParamDTO.getQuestion(),

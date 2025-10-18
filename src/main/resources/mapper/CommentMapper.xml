@@ -28,17 +28,113 @@
         where  id = #{id} 
     </select>
 
-    <delete id="deleteByPrimaryKey" parameterType="java.lang.Long">
-        delete from comment
-        where  id = #{id} 
-    </delete>
+    <select id="query" resultType="com.losgai.sys.vo.TopCommentVo">
+        SELECT c.id                 AS id,
+               c.user_id            AS userId,
+               u.username           AS username,
+               u.avatar_url         AS avatar,
+               c.car_id             AS carId,
+               c2.name              AS carName,
+               IF(u.role = 1, 2, 0) AS userType,
+               ro.score             AS score,
+               c.parent_comment_id  AS parentCommentId,
+               c.follow_comment_id  AS followCommentId,
+               c.content            AS content,
+               c.like_count         AS likeCount,
+               c.create_time        AS createTime
+        FROM comment c
+                 LEFT JOIN user u ON c.user_id = u.id
+                 LEFT JOIN car c2 ON c.car_id = c2.id
+                 LEFT JOIN rental_order ro ON c.car_id = ro.car_id and ro.user_id = c.user_id
+        WHERE c.deleted = 0
+        AND c.parent_comment_id = 0
+        <if test="keyWord != null and keyWord != ''">
+            AND c.content like concat('%', #{keyWord}, '%')
+        </if>
+        ORDER BY c.create_time DESC
+    </select>
+
+    <!--封装顶级评论-->
+    <select id="queryVoByCarId" resultType="com.losgai.sys.vo.TopCommentVo">
+        SELECT c.id                 AS id,
+               c.user_id            AS userId,
+               u.username           AS username,
+               u.avatar_url         AS avatar,
+               c.car_id             AS carId,
+               IF(u.role = 1, 2, 0) AS userType,
+               ro.score             AS score,
+               c.parent_comment_id  AS parentCommentId,
+               c.follow_comment_id  AS followCommentId,
+               c.content            AS content,
+               c.like_count         AS likeCount,
+               c.create_time        AS createTime
+        FROM comment c
+                 LEFT JOIN user u ON c.user_id = u.id
+                 LEFT JOIN rental_order ro ON c.car_id = ro.car_id and ro.user_id = c.user_id
+        WHERE c.car_id = #{carId}
+          AND c.deleted = 0
+          AND c.parent_comment_id = 0
+        ORDER BY c.like_count DESC
+    </select>
+
+    <select id="queryVoByIds" resultType="com.losgai.sys.vo.CommentVo">
+        SELECT
+            c.id AS id,
+            c.user_id AS userId,
+            u.username AS username,
+            u.avatar_url AS avatar,
+            c.car_id AS carId,
+            c.parent_comment_id AS parentCommentId,
+            c.follow_comment_id AS followCommentId,
+            c.content AS content,
+            c.like_count AS likeCount,
+            c.create_time AS createTime
+        FROM comment c
+                 LEFT JOIN user u ON c.user_id = u.id
+        WHERE c.deleted = 0
+          AND c.parent_comment_id in (
+            <foreach item="item" collection="ids" separator=",">
+                #{item}
+            </foreach>
+        )
+        ORDER BY c.like_count DESC
+        LIMIT 3
+    </select>
+    <select id="loadReplyByCommentId" resultType="com.losgai.sys.vo.CommentVo">
+        SELECT
+        c.id AS id,
+        c.user_id AS userId,
+        u.username AS username,
+        u.avatar_url AS avatar,
+        c.car_id AS carId,
+        c.parent_comment_id AS parentCommentId,
+        c.follow_comment_id AS followCommentId,
+        c.content AS content,
+        c.like_count AS likeCount,
+        c.create_time AS createTime
+        FROM comment c
+        LEFT JOIN user u ON c.user_id = u.id
+        WHERE c.deleted = 0
+        AND c.parent_comment_id = #{id}
+        ORDER BY c.like_count DESC
+    </select>
+
+    <update id="deleteByPrimaryKey" parameterType="java.lang.Long">
+        update CARDB.comment set
+        deleted = 1
+        where id = #{id}
+        or parent_comment_id = #{id}
+        or follow_comment_id = #{id}
+    </update>
+
     <insert id="insert" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.Comment" useGeneratedKeys="true">
         insert into comment
-        ( id,user_id,car_id,parent_comment_id,follow_comment_id,content,
+        ( id,user_id,car_id,parent_comment_id,follow_comment_id,content,like_count,
         create_time,update_time,deleted)
-        values (#{id},#{userId},#{carId},#{parentCommentId},#{followCommentId},#{content},
+        values (#{id},#{userId},#{carId},#{parentCommentId},#{followCommentId},#{content},#{likeCount},
         #{createTime},#{updateTime},#{deleted})
     </insert>
+
     <insert id="insertSelective" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.Comment" useGeneratedKeys="true">
         insert into comment
         <trim prefix="(" suffix=")" suffixOverrides=",">

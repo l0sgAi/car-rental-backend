@@ -9,7 +9,7 @@ import java.io.Serializable;
 import java.util.Date;
 
 /**
-* 订单信息表
+* 评论信息表
 * @TableName comment
 */
 @Data

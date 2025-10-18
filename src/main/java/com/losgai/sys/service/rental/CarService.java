@@ -28,4 +28,6 @@ public interface CarService {
     boolean updateESDoc(String indexName, Car car) throws IOException;
 
     boolean deleteESDoc(String indexName, String docId) throws IOException;
+
+    Car getCarById(Long id);
 }

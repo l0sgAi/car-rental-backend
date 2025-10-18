@@ -11,6 +11,7 @@ import com.losgai.sys.service.rental.CarService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
@@ -86,6 +87,14 @@ public class CarController {
             return Result.info(resultCodeEnum.getCode(),resultCodeEnum.getMessage());
         }
         return Result.success("上架成功");
+    }
+
+    @GetMapping("/detail/{id}")
+    @Tag(name = "获取车辆详细信息", description = "分页获取当前车辆信息")
+    public Result<Car> detail(@PathVariable Long id) {
+        // 执行查询
+        Car car = carService.getCarById(id);
+        return Result.success(car);
     }
 
     @PostMapping("/globalQuery")

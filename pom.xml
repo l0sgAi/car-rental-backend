@@ -166,6 +166,12 @@
             <version>${sa-token.version}</version>
         </dependency>
 
+        <!-- Redis -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
         <!-- Sa-Token 整合 Fastjson2 -->
         <dependency>
             <groupId>cn.dev33</groupId>
@@ -190,10 +196,16 @@
 
         <!--分页插件-->
         <!-- https://mvnrepository.com/artifact/com.github.pagehelper/pagehelper -->
+<!--        <dependency>-->
+<!--            <groupId>com.github.pagehelper</groupId>-->
+<!--            <artifactId>pagehelper</artifactId>-->
+<!--            <version>${pagehelper.version}</version>-->
+<!--        </dependency>-->
+
         <dependency>
             <groupId>com.github.pagehelper</groupId>
-            <artifactId>pagehelper</artifactId>
-            <version>${pagehelper.version}</version>
+            <artifactId>pagehelper-spring-boot-starter</artifactId>
+            <version>1.4.7</version>
         </dependency>
 
         <!--MinIO文件上传-->

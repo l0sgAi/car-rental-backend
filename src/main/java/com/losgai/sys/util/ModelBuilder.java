@@ -26,7 +26,7 @@ import java.util.List;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class ModelBuilderSpringAiWithMemo {
+public class ModelBuilder {
 
     // 注入自定义对话记忆实现
     private final MybatisChatMemory mybatisChatMemory;
@@ -110,6 +110,40 @@ public class ModelBuilderSpringAiWithMemo {
                 .stream()
                 .chatResponse();
 
+    }
+
+    /**
+     * 非流简单式对话实现
+     * */
+    public String buildModelWithoutMemo(AiConfig aiConfig,
+                                        String systemMsg,
+                                        String userMsg){
+        OpenAiApi openAiApi = OpenAiApi.builder()
+                .apiKey(aiConfig.getApiKey())
+                .baseUrl(aiConfig.getApiDomain())
+                .completionsPath("/chat/completions")
+                .build();
+
+        OpenAiChatOptions chatOptions = OpenAiChatOptions.builder()
+                .maxTokens(aiConfig.getMaxContextMsgs())
+                .topP(aiConfig.getSimilarityTopP())
+                .temperature(aiConfig.getTemperature())
+                .model(aiConfig.getModelId())
+                .build();
+
+        ChatModel chatModel = OpenAiChatModel.builder()
+                .openAiApi(openAiApi)
+                .defaultOptions(chatOptions)
+                .build();
+
+        ChatClient chatClient = ChatClient.builder(chatModel)
+                .build();
+
+        return chatClient.prompt()
+                .system(systemMsg)
+                .user(userMsg)
+                .call()
+                .content();
     }
 
 }
