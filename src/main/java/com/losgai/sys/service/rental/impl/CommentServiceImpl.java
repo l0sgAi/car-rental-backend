@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Description;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -86,7 +87,7 @@ public class CommentServiceImpl implements CommentService {
     @Cacheable(value = "commentCache", key = "#carId")
     public List<TopCommentVo> queryByCarId(Long carId) {
         // 查询顶级评论
-        List<TopCommentVo> topComments = commentMapper.queryVoByCarId(carId);
+        List<TopCommentVo> topComments = commentMapper.queryVoByCarIdWithLimit(carId);
         if (topComments.isEmpty()) {
             return Collections.emptyList();
         }
@@ -102,8 +103,8 @@ public class CommentServiceImpl implements CommentService {
                 .map(TopCommentVo::getId)
                 .collect(Collectors.toList());
 
-        // 查询子评论
-        List<CommentVo> children = commentMapper.queryVoByIds(parentIds);
+        // 查询子评论，对于每个顶级评论，一次最多加载3条
+        List<CommentVo> children = commentMapper.queryVoByIds(parentIds,3);
 
         // 根据 parentId 分组
         Map<Long, List<CommentVo>> childrenGroup =
@@ -120,5 +121,40 @@ public class CommentServiceImpl implements CommentService {
     @Override
     public List<CommentVo> loadReplyByCommentId(Long id) {
         return commentMapper.loadReplyByCommentId(id);
+    }
+
+    @Override
+    @Description("加载更多评论，不走缓存")
+    public List<TopCommentVo> getMore(Long carId) {
+        // 查询顶级评论
+        List<TopCommentVo> topComments = commentMapper.queryVoByCarId(carId);
+        if (topComments.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 封装用户类型 + 收集评论ID
+        List<Long> parentIds = topComments.stream()
+                .peek(comment -> {
+                    // 非管理员类型时，根据评分判是否为租户
+                    if (!Objects.equals(comment.getUserType(), 2) && comment.getScore() != null) {
+                        comment.setUserType(1);
+                    }
+                })
+                .map(TopCommentVo::getId)
+                .collect(Collectors.toList());
+
+        // 查询子评论，对于每个顶级评论，一次最多加载3条
+        List<CommentVo> children = commentMapper.queryVoByIds(parentIds,3);
+
+        // 根据 parentId 分组
+        Map<Long, List<CommentVo>> childrenGroup =
+                children.stream().collect(Collectors.groupingBy(CommentVo::getParentCommentId));
+
+        // 把 child list 塞回顶级评论
+        topComments.forEach(top ->
+                top.setChildren(childrenGroup.getOrDefault(top.getId(), Collections.emptyList()))
+        );
+
+        return topComments;
     }
 }

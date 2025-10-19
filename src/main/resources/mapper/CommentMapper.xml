@@ -55,6 +55,29 @@
     </select>
 
     <!--封装顶级评论-->
+    <select id="queryVoByCarIdWithLimit" resultType="com.losgai.sys.vo.TopCommentVo">
+        SELECT c.id                 AS id,
+               c.user_id            AS userId,
+               u.username           AS username,
+               u.avatar_url         AS avatar,
+               c.car_id             AS carId,
+               IF(u.role = 1, 2, 0) AS userType,
+               ro.score             AS score,
+               c.parent_comment_id  AS parentCommentId,
+               c.follow_comment_id  AS followCommentId,
+               c.content            AS content,
+               c.like_count         AS likeCount,
+               c.create_time        AS createTime
+        FROM comment c
+                 LEFT JOIN user u ON c.user_id = u.id
+                 LEFT JOIN rental_order ro ON c.car_id = ro.car_id and ro.user_id = c.user_id
+        WHERE c.car_id = #{carId}
+          AND c.deleted = 0
+          AND c.parent_comment_id = 0
+        ORDER BY c.like_count DESC, c.create_time DESC
+        LIMIT 5
+    </select>
+
     <select id="queryVoByCarId" resultType="com.losgai.sys.vo.TopCommentVo">
         SELECT c.id                 AS id,
                c.user_id            AS userId,
@@ -74,32 +97,60 @@
         WHERE c.car_id = #{carId}
           AND c.deleted = 0
           AND c.parent_comment_id = 0
-        ORDER BY c.like_count DESC
+        ORDER BY c.like_count DESC, c.create_time DESC
     </select>
 
+<!--    <select id="queryVoByIds" resultType="com.losgai.sys.vo.CommentVo">-->
+<!--        SELECT-->
+<!--            c.id AS id,-->
+<!--            c.user_id AS userId,-->
+<!--            u.username AS username,-->
+<!--            u.avatar_url AS avatar,-->
+<!--            c.car_id AS carId,-->
+<!--            c.parent_comment_id AS parentCommentId,-->
+<!--            c.follow_comment_id AS followCommentId,-->
+<!--            c.content AS content,-->
+<!--            c.like_count AS likeCount,-->
+<!--            c.create_time AS createTime-->
+<!--        FROM comment c-->
+<!--                 LEFT JOIN user u ON c.user_id = u.id-->
+<!--        WHERE c.deleted = 0-->
+<!--          AND c.parent_comment_id in (-->
+<!--            <foreach item="item" collection="ids" separator=",">-->
+<!--                #{item}-->
+<!--            </foreach>-->
+<!--        )-->
+<!--        ORDER BY c.like_count DESC-->
+<!--    </select>-->
+
+    <!--窗口函数，对于每个parentId取3个评论-->
     <select id="queryVoByIds" resultType="com.losgai.sys.vo.CommentVo">
+        SELECT *
+        FROM (
         SELECT
-            c.id AS id,
-            c.user_id AS userId,
-            u.username AS username,
-            u.avatar_url AS avatar,
-            c.car_id AS carId,
-            c.parent_comment_id AS parentCommentId,
-            c.follow_comment_id AS followCommentId,
-            c.content AS content,
-            c.like_count AS likeCount,
-            c.create_time AS createTime
+        c.id AS id,
+        c.user_id AS userId,
+        u.username AS username,
+        u.avatar_url AS avatar,
+        c.car_id AS carId,
+        c.parent_comment_id AS parentCommentId,
+        c.follow_comment_id AS followCommentId,
+        c.content AS content,
+        c.like_count AS likeCount,
+        c.create_time AS createTime,
+        ROW_NUMBER() OVER (PARTITION BY c.parent_comment_id ORDER BY c.like_count DESC) AS rn
         FROM comment c
-                 LEFT JOIN user u ON c.user_id = u.id
+        LEFT JOIN user u ON c.user_id = u.id
         WHERE c.deleted = 0
-          AND c.parent_comment_id in (
-            <foreach item="item" collection="ids" separator=",">
-                #{item}
-            </foreach>
-        )
-        ORDER BY c.like_count DESC
-        LIMIT 3
+        AND c.parent_comment_id IN
+        <foreach item="item" collection="ids" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+        ) t
+        WHERE t.rn &lt;= #{limit}
     </select>
+
+
     <select id="loadReplyByCommentId" resultType="com.losgai.sys.vo.CommentVo">
         SELECT
         c.id AS id,
@@ -117,6 +168,26 @@
         WHERE c.deleted = 0
         AND c.parent_comment_id = #{id}
         ORDER BY c.like_count DESC
+    </select>
+
+    <select id="queryVoById" resultType="com.losgai.sys.vo.CommentVo">
+        SELECT
+        c.id AS id,
+        c.user_id AS userId,
+        u.username AS username,
+        u.avatar_url AS avatar,
+        c.car_id AS carId,
+        c.parent_comment_id AS parentCommentId,
+        c.follow_comment_id AS followCommentId,
+        c.content AS content,
+        c.like_count AS likeCount,
+        c.create_time AS createTime
+        FROM comment c
+        LEFT JOIN user u ON c.user_id = u.id
+        WHERE c.deleted = 0
+        AND c.parent_comment_id = #{id}
+        ORDER BY c.like_count DESC
+        LIMIT 3
     </select>
 
     <update id="deleteByPrimaryKey" parameterType="java.lang.Long">

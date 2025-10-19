@@ -30,9 +30,13 @@ public interface CommentMapper {
 
     List<TopCommentVo> query(String keyWord);
 
+    List<TopCommentVo> queryVoByCarIdWithLimit(Long carId);
+
     List<TopCommentVo> queryVoByCarId(Long carId);
 
-    List<CommentVo> queryVoByIds(List<Long> ids);
+    List<CommentVo> queryVoByIds(List<Long> ids,Integer limit);
 
     List<CommentVo> loadReplyByCommentId(Long id);
+
+    List<CommentVo> queryVoById(Long id);
 }

@@ -200,6 +200,7 @@ public class CarServiceImpl implements CarService {
             UpdateRequest<CarDocument, CarDocument> updateRequest = UpdateRequest.of(u -> u
                     .index(indexName)
                     .id(String.valueOf(car.getId()))
+                    .retryOnConflict(3)
                     .doc(carDoc)  // 更新的文档
                     .docAsUpsert(true)  // 如果文档不存在则插入
             );
@@ -254,6 +255,7 @@ public class CarServiceImpl implements CarService {
 
         // Redis 累加热度（最大 50000）
         String key = HOT_KEY_PREFIX + id;
+        // 这里指的是上次同步后新增的热度值
         Long currentHot = redisTemplate.opsForValue().increment(key, 1);
 
         if (currentHot != null && currentHot <= 50000) {
@@ -263,8 +265,8 @@ public class CarServiceImpl implements CarService {
         return car;
     }
 
-    // 定时任务，每 15 秒同步一次热度
-    @Scheduled(fixedDelay = 15000)
+    // 定时任务，每 45 秒同步一次热度
+    @Scheduled(fixedDelay = 45000)
     public void syncHotScore() {
         Set<Object> carIds = redisTemplate.opsForSet().members(HOT_SYNC_SET);
         if (carIds == null || carIds.isEmpty()) return;
@@ -281,6 +283,9 @@ public class CarServiceImpl implements CarService {
             Car car = carMapper.selectByPrimaryKey(carId);
             sender.sendCar(RabbitMQAiMessageConfig.EXCHANGE_NAME,
                     RabbitMQAiMessageConfig.ROUTING_KEY_CAR_UPDATE,car);
+
+            // 清空刚才同步的热度
+            redisTemplate.delete(key);
 
             log.info("同步热度, carId: {}, hot: {}", carId, hot);
 

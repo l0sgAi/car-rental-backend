@@ -19,4 +19,6 @@ public interface CommentService {
     List<TopCommentVo> queryByCarId(Long carId);
 
     List<CommentVo> loadReplyByCommentId(Long id);
+
+    List<TopCommentVo> getMore(Long carId);
 }

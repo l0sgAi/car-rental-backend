@@ -81,15 +81,23 @@ public class CommentController {
     }
 
     @GetMapping("/user/list")
-    @Tag(name = "获取车辆评论信息", description = "用户获取当前车辆所有评论信息列表")
-    public Result<List<TopCommentVo>> list(
+    @Tag(name = "获取车辆评论信息", description = "用户获取当前车辆初始评论信息列表")
+    public Result<List<TopCommentVo>> list(@RequestParam Long carId) {
+        // 执行查询
+        List<TopCommentVo> list = commentService.queryByCarId(carId);
+        return Result.success(list);
+    }
+
+    @GetMapping("/user/moreComment")
+    @Tag(name = "获取车辆评论信息", description = "用户获取更多评论信息")
+    public Result<List<TopCommentVo>> moreComment(
             @RequestParam Long carId,
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize) {
         // 开启分页
         PageHelper.startPage(pageNum, pageSize);
         // 执行查询
-        List<TopCommentVo> list = commentService.queryByCarId(carId);
+        List<TopCommentVo> list = commentService.getMore(carId);
         // 获取分页信息
         PageInfo<TopCommentVo> pageInfo = new PageInfo<>(list);
         // 使用自定义分页返回方法
@@ -97,7 +105,7 @@ public class CommentController {
     }
 
     @GetMapping("/user/loadReply")
-    @Tag(name = "获取车辆评论信息", description = "用户获取当前车辆所有评论信息列表")
+    @Tag(name = "获取车辆评论回复信息", description = "用户根据顶级评论id，分页获取当前评论回复列表")
     public Result<List<CommentVo>> loadReply(
             @RequestParam Long id,
             @RequestParam(defaultValue = "1") int pageNum,
