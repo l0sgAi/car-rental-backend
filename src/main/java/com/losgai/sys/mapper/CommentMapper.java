@@ -6,6 +6,7 @@ import com.losgai.sys.vo.TopCommentVo;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
+import java.util.Set;
 
 /**
 * @author miesme
@@ -30,13 +31,17 @@ public interface CommentMapper {
 
     List<TopCommentVo> query(String keyWord);
 
-    List<TopCommentVo> queryVoByCarIdWithLimit(Long carId);
+    List<TopCommentVo> queryVoByCarIdWithLimit(Long carId,Long userId);
 
-    List<TopCommentVo> queryVoByCarId(Long carId);
+    List<TopCommentVo> queryVoByCarId(Long carId,Long userId);
 
-    List<CommentVo> queryVoByIds(List<Long> ids,Integer limit);
+    List<CommentVo> queryVoByIds(List<Long> ids,Integer limit,Long userId);
 
-    List<CommentVo> loadReplyByCommentId(Long id);
+    List<CommentVo> loadReplyByCommentId(Long id,Long userId);
 
-    List<CommentVo> queryVoById(Long id);
+    List<CommentVo> queryVoById(Long id,Long userId);
+
+    void syncLikeCount(Long commentId, Long likeCount);
+
+    Set<Long> queryCarIdsByCommentIds(Set<Long> commentIds);
 }

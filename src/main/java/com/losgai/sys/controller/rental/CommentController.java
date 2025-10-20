@@ -120,4 +120,15 @@ public class CommentController {
         return Result.page(list, pageInfo.getTotal());
     }
 
+    @PostMapping("/user/like")
+    @Tag(name = "用户点赞", description = "用户点赞")
+    public Result<String> like(@RequestParam Long commentId) {
+        Long userId = StpUtil.getLoginIdAsLong();
+        ResultCodeEnum codeEnum = commentService.like(commentId, userId);
+        if (!Objects.equals(codeEnum.getCode(), ResultCodeEnum.SUCCESS.getCode())) {
+            return Result.info(codeEnum.getCode(),codeEnum.getMessage());
+        }
+        return Result.success("点赞成功");
+    }
+
 }

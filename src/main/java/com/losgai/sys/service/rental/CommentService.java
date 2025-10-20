@@ -21,4 +21,6 @@ public interface CommentService {
     List<CommentVo> loadReplyByCommentId(Long id);
 
     List<TopCommentVo> getMore(Long carId);
+
+    ResultCodeEnum like(Long carId, Long userId);
 }

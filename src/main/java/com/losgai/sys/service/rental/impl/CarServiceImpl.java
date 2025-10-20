@@ -265,8 +265,8 @@ public class CarServiceImpl implements CarService {
         return car;
     }
 
-    // 定时任务，每 45 秒同步一次热度
-    @Scheduled(fixedDelay = 45000)
+    // 定时任务，每 625 秒同步一次热度
+    @Scheduled(fixedDelay = 625000)
     public void syncHotScore() {
         Set<Object> carIds = redisTemplate.opsForSet().members(HOT_SYNC_SET);
         if (carIds == null || carIds.isEmpty()) return;

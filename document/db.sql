@@ -120,4 +120,16 @@ CREATE TABLE `comment`
 ) ENGINE = InnoDB
   AUTO_INCREMENT = 1
   DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_0900_ai_ci COMMENT ='订单信息表';
+  COLLATE = utf8mb4_0900_ai_ci COMMENT ='评论信息表';
+
+-- 点赞表
+CREATE TABLE `like`
+(
+    `id`                bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
+    `user_id`           bigint unsigned NOT NULL COMMENT '对应用户ID',
+    `comment_id`            bigint unsigned NOT NULL COMMENT '对应评论ID',
+    PRIMARY KEY (`id`)
+) ENGINE = InnoDB
+  AUTO_INCREMENT = 1
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_0900_ai_ci COMMENT ='点赞信息表';

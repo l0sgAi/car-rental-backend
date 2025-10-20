@@ -76,4 +76,9 @@ public class CommentVo {
      */
     private Date createTime;
 
+    /**
+     * 是否点赞过 1-点赞过 0-未点赞过 默认0
+     */
+    private Integer liked = 0;
+
 }

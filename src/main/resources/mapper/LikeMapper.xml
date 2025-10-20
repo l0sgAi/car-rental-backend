@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.losgai.sys.mapper.LikeMapper">
+
+    <resultMap id="BaseResultMap" type="com.losgai.sys.entity.carRental.Like">
+            <id property="id" column="id" />
+            <result property="userId" column="user_id" />
+            <result property="commentId" column="comment_id" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,user_id,comment_id
+    </sql>
+
+    <select id="selectByPrimaryKey" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List" />
+        from `like`
+        where  id = #{id} 
+    </select>
+
+    <select id="listUserIdsByCommentId" resultType="java.lang.Long">
+        select user_id from `like`
+        where comment_id = #{commentId}
+    </select>
+
+    <delete id="deleteByPrimaryKey" parameterType="java.lang.Long">
+        delete from `like`
+        where  id = #{id} 
+    </delete>
+    <insert id="insert" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.Like" useGeneratedKeys="true">
+        insert into `like`
+        ( id,user_id,comment_id)
+        values (#{id},#{userId},#{commentId})
+    </insert>
+    <insert id="insertSelective" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.Like" useGeneratedKeys="true">
+        insert into `like`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+                <if test="id != null">id,</if>
+                <if test="userId != null">user_id,</if>
+                <if test="commentId != null">comment_id,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+                <if test="id != null">#{id},</if>
+                <if test="userId != null">#{userId},</if>
+                <if test="commentId != null">#{commentId},</if>
+        </trim>
+    </insert>
+
+    <insert id="batchInsert">
+        insert ignore into `like` (user_id, comment_id) values
+        <foreach item="item" index="index" collection="list" separator=",">
+            (#{item.userId}, #{item.commentId})
+        </foreach>
+    </insert>
+
+    <update id="updateByPrimaryKeySelective" parameterType="com.losgai.sys.entity.carRental.Like">
+        update `like`
+        <set>
+                <if test="userId != null">
+                    user_id = #{userId},
+                </if>
+                <if test="commentId != null">
+                    comment_id = #{commentId},
+                </if>
+        </set>
+        where   id = #{id} 
+    </update>
+    <update id="updateByPrimaryKey" parameterType="com.losgai.sys.entity.carRental.Like">
+        update `like`
+        set 
+            user_id =  #{userId},
+            comment_id =  #{commentId}
+        where   id = #{id} 
+    </update>
+</mapper>

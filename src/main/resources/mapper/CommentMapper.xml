@@ -67,10 +67,12 @@
                c.follow_comment_id  AS followCommentId,
                c.content            AS content,
                c.like_count         AS likeCount,
-               c.create_time        AS createTime
+               c.create_time        AS createTime,
+               IF(l.user_id IS NOT NULL, 1, 0) AS liked
         FROM comment c
                  LEFT JOIN user u ON c.user_id = u.id
                  LEFT JOIN rental_order ro ON c.car_id = ro.car_id and ro.user_id = c.user_id
+                 LEFT JOIN `like` l ON c.id = l.comment_id and l.user_id = #{userId}
         WHERE c.car_id = #{carId}
           AND c.deleted = 0
           AND c.parent_comment_id = 0
@@ -90,10 +92,12 @@
                c.follow_comment_id  AS followCommentId,
                c.content            AS content,
                c.like_count         AS likeCount,
-               c.create_time        AS createTime
+               c.create_time        AS createTime,
+               IF(l.user_id IS NOT NULL, 1, 0) AS liked
         FROM comment c
                  LEFT JOIN user u ON c.user_id = u.id
                  LEFT JOIN rental_order ro ON c.car_id = ro.car_id and ro.user_id = c.user_id
+                 LEFT JOIN `like` l ON c.id = l.comment_id and l.user_id = #{userId}
         WHERE c.car_id = #{carId}
           AND c.deleted = 0
           AND c.parent_comment_id = 0
@@ -138,9 +142,11 @@
         c.content AS content,
         c.like_count AS likeCount,
         c.create_time AS createTime,
+        IF(l.user_id IS NOT NULL, 1, 0) AS liked,
         ROW_NUMBER() OVER (PARTITION BY c.parent_comment_id ORDER BY c.like_count DESC) AS rn
         FROM comment c
         LEFT JOIN user u ON c.user_id = u.id
+        LEFT JOIN `like` l ON c.id = l.comment_id and l.user_id = #{userId}
         WHERE c.deleted = 0
         AND c.parent_comment_id IN
         <foreach item="item" collection="ids" open="(" separator="," close=")">
@@ -162,9 +168,11 @@
         c.follow_comment_id AS followCommentId,
         c.content AS content,
         c.like_count AS likeCount,
-        c.create_time AS createTime
+        c.create_time AS createTime,
+        IF(l.user_id IS NOT NULL, 1, 0) AS liked
         FROM comment c
         LEFT JOIN user u ON c.user_id = u.id
+        LEFT JOIN `like` l ON c.id = l.comment_id and l.user_id = #{userId}
         WHERE c.deleted = 0
         AND c.parent_comment_id = #{id}
         ORDER BY c.like_count DESC
@@ -181,13 +189,25 @@
         c.follow_comment_id AS followCommentId,
         c.content AS content,
         c.like_count AS likeCount,
-        c.create_time AS createTime
+        c.create_time AS createTime,
+        IF(l.user_id IS NOT NULL, 1, 0) AS liked
         FROM comment c
         LEFT JOIN user u ON c.user_id = u.id
+        LEFT JOIN `like` l ON c.id = l.comment_id and l.user_id = #{userId}
         WHERE c.deleted = 0
         AND c.parent_comment_id = #{id}
         ORDER BY c.like_count DESC
         LIMIT 3
+    </select>
+
+    <select id="queryCarIdsByCommentIds" resultType="java.lang.Long">
+        select car_id from comment
+        where id in
+        <foreach item="item" collection="commentIds" separator="," open="(" close=")">
+            #{item}
+        </foreach>
+        and deleted = 0
+        group by car_id
     </select>
 
     <update id="deleteByPrimaryKey" parameterType="java.lang.Long">
@@ -231,6 +251,14 @@
                 <if test="deleted != null">#{deleted},</if>
         </trim>
     </insert>
+
+    <update id="syncLikeCount">
+        UPDATE comment
+        SET like_count = #{likeCount}
+        WHERE id = #{commentId}
+        AND deleted = 0
+    </update>
+
     <update id="updateByPrimaryKeySelective" parameterType="com.losgai.sys.entity.carRental.Comment">
         update comment
         <set>
