@@ -42,6 +42,8 @@
         <springboot.version>3.5.0</springboot.version>
         <pagehelper.version>6.1.1</pagehelper.version>
         <minio.version>8.5.2</minio.version>
+        <pagehelper-spring-boot-starter.version>1.4.7</pagehelper-spring-boot-starter.version>
+        <redisson.version>3.50.0</redisson.version>
     </properties>
 
     <dependencies>
@@ -194,18 +196,18 @@
             <version>${springboot.version}</version>
         </dependency>
 
-        <!--分页插件-->
-        <!-- https://mvnrepository.com/artifact/com.github.pagehelper/pagehelper -->
-<!--        <dependency>-->
-<!--            <groupId>com.github.pagehelper</groupId>-->
-<!--            <artifactId>pagehelper</artifactId>-->
-<!--            <version>${pagehelper.version}</version>-->
-<!--        </dependency>-->
-
+        <!--分页插件整合-->
         <dependency>
             <groupId>com.github.pagehelper</groupId>
             <artifactId>pagehelper-spring-boot-starter</artifactId>
-            <version>1.4.7</version>
+            <version>${pagehelper-spring-boot-starter.version}</version>
+        </dependency>
+
+        <!--redisson即redlock的java实现，用于实现分布式锁-->
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson-spring-boot-starter</artifactId>
+            <version>${redisson.version}</version>
         </dependency>
 
         <!--MinIO文件上传-->

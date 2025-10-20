@@ -4,6 +4,7 @@ import lombok.Data;
 
 import javax.validation.constraints.NotNull;
 import java.io.Serializable;
+import java.util.Date;
 
 /**
 * 点赞信息表
@@ -27,6 +28,12 @@ public class Like implements Serializable {
     */
     @NotNull(message="[对应评论ID]不能为空")
     private Long commentId;
+
+    @NotNull(message="[创建时间]不能为空")
+    private Date createTime;
+
+    @NotNull(message="[是否撤回点赞]不能为空")
+    private Integer isFallback;
 
     public Like(Long id, Long userId, Long commentId) {
         this.id = id;

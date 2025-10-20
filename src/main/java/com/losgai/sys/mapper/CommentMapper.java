@@ -4,8 +4,10 @@ import com.losgai.sys.entity.carRental.Comment;
 import com.losgai.sys.vo.CommentVo;
 import com.losgai.sys.vo.TopCommentVo;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -31,17 +33,19 @@ public interface CommentMapper {
 
     List<TopCommentVo> query(String keyWord);
 
-    List<TopCommentVo> queryVoByCarIdWithLimit(Long carId,Long userId);
+    List<TopCommentVo> queryVoByCarIdWithLimit(Long carId);
 
-    List<TopCommentVo> queryVoByCarId(Long carId,Long userId);
+    List<TopCommentVo> queryVoByCarId(Long carId);
 
-    List<CommentVo> queryVoByIds(List<Long> ids,Integer limit,Long userId);
+    List<CommentVo> queryVoByIds(List<Long> ids,Integer limit);
 
-    List<CommentVo> loadReplyByCommentId(Long id,Long userId);
+    List<CommentVo> loadReplyByCommentId(Long id);
 
-    List<CommentVo> queryVoById(Long id,Long userId);
+    List<CommentVo> queryVoById(Long id);
 
     void syncLikeCount(Long commentId, Long likeCount);
 
     Set<Long> queryCarIdsByCommentIds(Set<Long> commentIds);
+
+    void batchUpdateLikeCount(@Param("commentLikeCounts") Map<Long, Long> commentLikeCounts);
 }

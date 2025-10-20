@@ -2,8 +2,10 @@ package com.losgai.sys.mapper;
 
 import com.losgai.sys.entity.carRental.Like;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.Set;
 
 /**
 * @author miesme
@@ -29,4 +31,10 @@ public interface LikeMapper {
     List<Long> listUserIdsByCommentId(Long commentId);
 
     void batchInsert(List<Like> newLikes);
+
+    void deleteByCommentId(Long commentId);
+
+    List<Like> listActiveLikesByCommentIds(@Param("commentIds") Set<Long> commentIds);
+
+    void batchSoftDelete(List<Like> likesToSoftDelete);
 }

@@ -125,11 +125,17 @@ CREATE TABLE `comment`
 -- 点赞表
 CREATE TABLE `like`
 (
-    `id`                bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
-    `user_id`           bigint unsigned NOT NULL COMMENT '对应用户ID',
-    `comment_id`            bigint unsigned NOT NULL COMMENT '对应评论ID',
+    `id`          bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
+    `user_id`     bigint unsigned NOT NULL COMMENT '对应用户ID',
+    `comment_id`  bigint unsigned NOT NULL COMMENT '对应评论ID',
+    `create_time` datetime        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `is_fallback` tinyint         NOT NULL DEFAULT '0' COMMENT '逻辑删除：0=正常，1=已删除',
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB
   AUTO_INCREMENT = 1
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_0900_ai_ci COMMENT ='点赞信息表';
+
+-- 添加唯一索引
+ALTER TABLE `like`
+ADD UNIQUE KEY uk_user_comment (user_id, comment_id);

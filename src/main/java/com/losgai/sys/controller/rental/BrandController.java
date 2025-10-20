@@ -26,7 +26,6 @@ public class BrandController {
 
     private final BrandService brandService;
 
-    @SaCheckRole("admin")
     @GetMapping("/admin/list")
     @Tag(name = "获取所有品牌信息", description = "分页获取当前所有品牌信息")
     public Result<List<Brand>> query(

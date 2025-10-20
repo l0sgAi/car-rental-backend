@@ -5,47 +5,72 @@
 <mapper namespace="com.losgai.sys.mapper.LikeMapper">
 
     <resultMap id="BaseResultMap" type="com.losgai.sys.entity.carRental.Like">
-            <id property="id" column="id" />
-            <result property="userId" column="user_id" />
-            <result property="commentId" column="comment_id" />
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="commentId" column="comment_id"/>
+        <result property="createTime" column="create_time"/>
+        <result property="isFallback" column="is_fallback"/>
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,user_id,comment_id
+        id,user_id,comment_id,create_time,is_fallback
     </sql>
 
     <select id="selectByPrimaryKey" parameterType="java.lang.Long" resultMap="BaseResultMap">
         select
-        <include refid="Base_Column_List" />
+        <include refid="Base_Column_List"/>
         from `like`
-        where  id = #{id} 
+        where id = #{id}
     </select>
 
     <select id="listUserIdsByCommentId" resultType="java.lang.Long">
-        select user_id from `like`
+        select user_id
+        from `like`
         where comment_id = #{commentId}
     </select>
 
+    <select id="listActiveLikesByCommentIds" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List"/>
+        from `like`
+        where
+        is_fallback = 0
+        and comment_id in
+        <foreach item="item" index="index" collection="commentIds" separator="," open="(" close=")">
+            #{item}
+        </foreach>
+    </select>
+
     <delete id="deleteByPrimaryKey" parameterType="java.lang.Long">
-        delete from `like`
-        where  id = #{id} 
+        delete
+        from `like`
+        where id = #{id}
     </delete>
-    <insert id="insert" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.Like" useGeneratedKeys="true">
+
+    <delete id="deleteByCommentId">
+        delete
+        from `like`
+        where comment_id = #{commentId}
+    </delete>
+
+    <insert id="insert" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.Like"
+            useGeneratedKeys="true">
         insert into `like`
-        ( id,user_id,comment_id)
-        values (#{id},#{userId},#{commentId})
+            (id, user_id, comment_id)
+        values (#{id}, #{userId}, #{commentId})
     </insert>
-    <insert id="insertSelective" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.Like" useGeneratedKeys="true">
+    <insert id="insertSelective" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.Like"
+            useGeneratedKeys="true">
         insert into `like`
         <trim prefix="(" suffix=")" suffixOverrides=",">
-                <if test="id != null">id,</if>
-                <if test="userId != null">user_id,</if>
-                <if test="commentId != null">comment_id,</if>
+            <if test="id != null">id,</if>
+            <if test="userId != null">user_id,</if>
+            <if test="commentId != null">comment_id,</if>
         </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
-                <if test="id != null">#{id},</if>
-                <if test="userId != null">#{userId},</if>
-                <if test="commentId != null">#{commentId},</if>
+            <if test="id != null">#{id},</if>
+            <if test="userId != null">#{userId},</if>
+            <if test="commentId != null">#{commentId},</if>
         </trim>
     </insert>
 
@@ -59,20 +84,30 @@
     <update id="updateByPrimaryKeySelective" parameterType="com.losgai.sys.entity.carRental.Like">
         update `like`
         <set>
-                <if test="userId != null">
-                    user_id = #{userId},
-                </if>
-                <if test="commentId != null">
-                    comment_id = #{commentId},
-                </if>
+            <if test="userId != null">
+                user_id = #{userId},
+            </if>
+            <if test="commentId != null">
+                comment_id = #{commentId},
+            </if>
         </set>
-        where   id = #{id} 
+        where id = #{id}
     </update>
+
     <update id="updateByPrimaryKey" parameterType="com.losgai.sys.entity.carRental.Like">
         update `like`
-        set 
-            user_id =  #{userId},
-            comment_id =  #{commentId}
-        where   id = #{id} 
+        set user_id    = #{userId},
+            comment_id = #{commentId}
+        where id = #{id}
     </update>
+
+    <update id="batchSoftDelete">
+        UPDATE `like`
+        SET is_fallback = 1 -- 假设字段是 is_deleted
+        WHERE (user_id, comment_id) IN
+        <foreach collection="list" item="item" open="(" separator="," close=")">
+            (#{item.userId}, #{item.commentId})
+        </foreach>
+    </update>
+
 </mapper>

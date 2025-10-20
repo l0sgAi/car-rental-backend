@@ -75,25 +75,15 @@ public class TopCommentVo {
      * 创建时间
      */
     private Date createTime;
+
+    /**
+     * 是否点赞过 1-点赞过 0-未点赞过 默认0
+     */
+    private Integer liked = 0;
     
     /**
      * 子评论列表
      */
     private List<CommentVo> children;
 
-    /**
-     * 将Comment实体转换为CommentDTO
-     */
-    public static TopCommentVo fromEntity(Comment comment) {
-        TopCommentVo dto = new TopCommentVo();
-        dto.setId(comment.getId());
-        dto.setUserId(comment.getUserId());
-        dto.setCarId(comment.getCarId());
-        dto.setParentCommentId(comment.getParentCommentId());
-        dto.setFollowCommentId(comment.getFollowCommentId());
-        dto.setContent(comment.getContent());
-        dto.setLikeCount(comment.getLikeCount());
-        dto.setCreateTime(comment.getCreateTime());
-        return dto;
-    }
 }

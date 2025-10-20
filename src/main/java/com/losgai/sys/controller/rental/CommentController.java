@@ -84,6 +84,7 @@ public class CommentController {
     @Tag(name = "获取车辆评论信息", description = "用户获取当前车辆初始评论信息列表")
     public Result<List<TopCommentVo>> list(@RequestParam Long carId) {
         // 执行查询
+        PageHelper.clearPage(); // 修复线程绑定导致的重复LIMIT错误
         List<TopCommentVo> list = commentService.queryByCarId(carId);
         return Result.success(list);
     }
