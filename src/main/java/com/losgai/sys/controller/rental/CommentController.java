@@ -75,6 +75,8 @@ public class CommentController {
         List<TopCommentVo> list = commentService.query(keyWord);
         // 获取分页信息
         PageInfo<TopCommentVo> pageInfo = new PageInfo<>(list);
+        // 清理分页
+        PageHelper.clearPage();
         // 使用自定义分页返回方法
         return Result.page(list, pageInfo.getTotal());
     }
@@ -83,7 +85,6 @@ public class CommentController {
     @Tag(name = "获取车辆评论信息", description = "用户获取当前车辆初始评论信息列表")
     public Result<List<TopCommentVo>> list(@RequestParam Long carId) {
         // 执行查询
-        PageHelper.clearPage(); // 修复线程绑定导致的重复LIMIT错误
         List<TopCommentVo> list = commentService.queryByCarId(carId);
         return Result.success(list);
     }
@@ -100,6 +101,8 @@ public class CommentController {
         List<TopCommentVo> list = commentService.getMore(carId);
         // 获取分页信息
         PageInfo<TopCommentVo> pageInfo = new PageInfo<>(list);
+        // 清理分页
+        PageHelper.clearPage();
         // 使用自定义分页返回方法
         return Result.page(list, pageInfo.getTotal());
     }
@@ -116,6 +119,8 @@ public class CommentController {
         List<CommentVo> list = commentService.loadReplyByCommentId(id);
         // 获取分页信息
         PageInfo<CommentVo> pageInfo = new PageInfo<>(list);
+        // 清理分页
+        PageHelper.clearPage();
         // 使用自定义分页返回方法
         return Result.page(list, pageInfo.getTotal());
     }

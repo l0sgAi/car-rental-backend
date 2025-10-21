@@ -1,5 +1,6 @@
 package com.losgai.sys.vo;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -55,6 +56,11 @@ public class ShowOrderVo {
      * 订单总额(人民币元)
      */
     private BigDecimal price;
+
+    /**
+     * 地址
+     * */
+    private String address;
 
     /**
      * 订单状态：0=新建/待支付，1=已支付，2=租赁中，3=已完成，4=已取消

@@ -72,6 +72,8 @@ public class CarController {
         List<Car> list = carService.query(keyWord,status);
         // 获取分页信息
         PageInfo<Car> pageInfo = new PageInfo<>(list);
+        // 清理分页
+        PageHelper.clearPage();
         // 使用自定义分页返回方法
         return Result.page(list, pageInfo.getTotal());
     }

@@ -107,6 +107,8 @@ public class OrderController {
         List<ShowOrderVo> list = orderService.query(keyWord,start,end,status);
         // 获取分页信息
         PageInfo<ShowOrderVo> pageInfo = new PageInfo<>(list);
+        // 清理分页
+        PageHelper.clearPage();
         // 使用自定义分页返回方法
         return Result.page(list, pageInfo.getTotal());
     }
@@ -138,6 +140,8 @@ public class OrderController {
         List<ShowOrderVo> list = orderService.userQuery(keyWord,start,end,status);
         // 获取分页信息
         PageInfo<ShowOrderVo> pageInfo = new PageInfo<>(list);
+        // 清理分页
+        PageHelper.clearPage();
         // 使用自定义分页返回方法
         return Result.page(list, pageInfo.getTotal());
     }

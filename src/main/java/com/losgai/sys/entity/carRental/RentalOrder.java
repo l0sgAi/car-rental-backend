@@ -1,8 +1,11 @@
 package com.losgai.sys.entity.carRental;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
+import org.hibernate.validator.constraints.Length;
 
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.Date;
@@ -44,6 +47,13 @@ public class RentalOrder implements Serializable {
     */
     @NotNull(message="[订单总额(人民币元)]不能为空")
     private BigDecimal price;
+    /**
+     * 取还车地址
+     * */
+    @NotBlank(message = "[地址]不能为空")
+    @Size(max= 255,message="编码长度不能超过255")
+    @Length(max= 255,message="编码长度不能超过255")
+    private String address;
     /**
     * 订单状态：0=新建/待支付，1=已支付，2=租赁中，3=已完成，4=已取消
     */

@@ -35,6 +35,8 @@ public class BrandController {
         List<Brand> list = brandService.queryByKeyWord(keyWord);
         // 获取分页信息
         PageInfo<Brand> pageInfo = new PageInfo<>(list);
+        // 清理分页
+        PageHelper.clearPage();
         // 使用自定义分页返回方法
         return Result.page(list, pageInfo.getTotal());
     }

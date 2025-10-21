@@ -78,7 +78,7 @@ public class OrderServiceImpl implements OrderService {
         order.setUserId(StpUtil.getLoginIdAsLong());
         order.setCarId(bookingDto.getCarId());
         order.setStatus(0);
-        order.setDeleted(0);
+        order.setDeleted(0);order.setAddress(bookingDto.getAddress());
 
         // 计算订单租车日期
         Date startRentalTime = bookingDto.getStartRentalTime();

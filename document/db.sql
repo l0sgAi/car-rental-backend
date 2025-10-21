@@ -88,6 +88,7 @@ CREATE TABLE `rental_order`
     `start_rental_time` date            NOT NULL COMMENT '车辆起租日期',
     `end_rental_time`   date            NOT NULL COMMENT '车辆还车日期',
     `price`             decimal(10, 2)  NOT NULL COMMENT '订单总额(人民币元)',
+    `address`           varchar(255)     NOT NULL COMMENT '取还车地址',
 
     `status`            tinyint         NOT NULL DEFAULT '0' COMMENT '订单状态：0=新建/待支付，1=已支付，2=租赁中，3=已完成，4=已取消',
     `score`             int                      DEFAULT NULL COMMENT '订单评分0-10，计入车辆均分',

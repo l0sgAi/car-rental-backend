@@ -11,6 +11,7 @@
             <result property="startRentalTime" column="start_rental_time" />
             <result property="endRentalTime" column="end_rental_time" />
             <result property="price" column="price" />
+            <result property="address" column="address" />
             <result property="status" column="status" />
             <result property="score" column="score" />
             <result property="createTime" column="create_time" />
@@ -19,7 +20,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,user_id,car_id,start_rental_time,end_rental_time,price,
+        id,user_id,car_id,start_rental_time,end_rental_time,price,address
         status,score,create_time,update_time,deleted
     </sql>
 
@@ -60,6 +61,7 @@
         ro.start_rental_time as startTime,
         ro.end_rental_time as endTime,
         ro.price as price,
+        ro.address as address,
         ro.status as status,
         ro.score as score,
         ro.create_time as createTime,
@@ -101,6 +103,7 @@
         ro.start_rental_time as startTime,
         ro.end_rental_time as endTime,
         ro.price as price,
+        ro.address as address,
         ro.status as status,
         ro.score as score,
         ro.create_time as createTime,
@@ -140,9 +143,9 @@
 
     <insert id="insert" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.RentalOrder" useGeneratedKeys="true">
         insert into rental_order
-        ( id,user_id,car_id,start_rental_time,end_rental_time,price,
+        ( id,user_id,car_id,start_rental_time,end_rental_time,price,address,
         status,score,create_time,update_time,deleted)
-        values (#{id},#{userId},#{carId},#{startRentalTime},#{endRentalTime},#{price},
+        values (#{id},#{userId},#{carId},#{startRentalTime},#{endRentalTime},#{price},#{address},
         #{status},#{score},#{createTime},#{updateTime},#{deleted})
     </insert>
     <insert id="insertSelective" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.RentalOrder" useGeneratedKeys="true">
@@ -154,6 +157,7 @@
                 <if test="startRentalTime != null">start_rental_time,</if>
                 <if test="endRentalTime != null">end_rental_time,</if>
                 <if test="price != null">price,</if>
+            <if test="address != null">address,</if>
                 <if test="status != null">status,</if>
                 <if test="score != null">score,</if>
                 <if test="createTime != null">create_time,</if>
@@ -167,6 +171,7 @@
                 <if test="startRentalTime != null">#{startRentalTime},</if>
                 <if test="endRentalTime != null">#{endRentalTime},</if>
                 <if test="price != null">#{price},</if>
+            <if test="address != null">#{address},</if>
                 <if test="status != null">#{status},</if>
                 <if test="score != null">#{score},</if>
                 <if test="createTime != null">#{createTime},</if>
@@ -191,6 +196,9 @@
                 </if>
                 <if test="price != null">
                     price = #{price},
+                </if>
+            <if test="address != null">
+                    address = #{address},
                 </if>
                 <if test="status != null">
                     status = #{status},
@@ -218,6 +226,7 @@
             start_rental_time =  #{startRentalTime},
             end_rental_time =  #{endRentalTime},
             price =  #{price},
+            address =  #{address},
             status =  #{status},
             score =  #{score},
             create_time =  #{createTime},
