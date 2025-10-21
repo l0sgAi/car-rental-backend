@@ -97,7 +97,7 @@ public class RabbitMQAiMessageConfig {
         // 设置死信交换机
         args.put("x-dead-letter-exchange", EXCHANGE_NAME);
         // 设置死信路由键
-        args.put("x-dead-letter-routing-key", ROUTING_KEY_ORDER_DELAY);
+        args.put("x-dead-letter-routing-key", ROUTING_KEY_ORDER_PROCESS);
         return QueueBuilder.durable(ORDER_DELAY_QUEUE).withArguments(args).build();
     }
 
