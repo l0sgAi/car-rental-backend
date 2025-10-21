@@ -46,7 +46,7 @@ public class RabbitMQAiMessageConfig {
     public static final String ROUTING_KEY_ORDER_PROCESS = "order.process";
 
     // 延迟时间，30分钟 = 30 * 60 * 1000 = 1,800,000毫秒
-    private static final long DELAY_TIME = 1000 * 60 * 30;
+    private static final long DELAY_TIME = 30 * 60 * 1000;
 
     /// 声明交换机
     @Bean
@@ -88,23 +88,17 @@ public class RabbitMQAiMessageConfig {
         return QueueBuilder.durable(QUEUE_NAME_COMMENT_CENSOR).build();
     }
 
-    // 声明延迟队列（带有死信参数）
+    // 延迟队列
     @Bean
     public Queue orderDelayQueue() {
         Map<String, Object> args = new HashMap<>();
-        // 设置消息的过期时间 (TTL)，单位：毫秒
         args.put("x-message-ttl", DELAY_TIME);
-        // 设置死信交换机
         args.put("x-dead-letter-exchange", EXCHANGE_NAME);
-        // 设置死信路由键
         args.put("x-dead-letter-routing-key", ROUTING_KEY_ORDER_PROCESS);
         return QueueBuilder.durable(ORDER_DELAY_QUEUE).withArguments(args).build();
     }
 
-    /**
-     * 声明处理队列
-     * 真正的消费者将监听这个队列
-     */
+    // 处理队列
     @Bean
     public Queue orderProcessQueue() {
         return QueueBuilder.durable(ORDER_PROCESS_QUEUE).build();
@@ -144,13 +138,22 @@ public class RabbitMQAiMessageConfig {
         return BindingBuilder.bind(commentCensorQueue).to(exchange).with(ROUTING_KEY_COMMENT_CENSOR);
     }
 
-    /**
-     * 将处理队列绑定到交换机
-     * 当死信消息被发送到交换机时，通过 ROUTING_KEY_ORDER_PROCESS 路由到这里
-     */
+    // 4. 延迟队列绑定
     @Bean
-    public Binding processBinding(Queue orderProcessQueue, DirectExchange exchange) {
-        return BindingBuilder.bind(orderProcessQueue).to(exchange).with(ROUTING_KEY_ORDER_PROCESS);
+    public Binding delayBinding() {
+        return BindingBuilder
+                .bind(orderDelayQueue())
+                .to(exchange())
+                .with(ROUTING_KEY_ORDER_DELAY);
+    }
+
+    // 5. 处理队列绑定
+    @Bean
+    public Binding processBinding() {
+        return BindingBuilder
+                .bind(orderProcessQueue())
+                .to(exchange())
+                .with(ROUTING_KEY_ORDER_PROCESS);
     }
 
     // 反序列化配置
