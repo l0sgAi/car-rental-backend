@@ -30,6 +30,108 @@
         where  id = #{id} 
     </select>
 
+    <select id="findFutureBookingsByCarId" resultType="com.losgai.sys.dto.BookingSlot">
+        SELECT
+        start_rental_time as startRentalTime,
+        end_rental_time as endRentalTime
+        FROM
+        rental_order
+        WHERE
+        car_id = #{carId}
+        -- 1. 过滤掉逻辑删除的订单
+        AND deleted = 0
+        -- 2. 只查询“已支付”或“租赁中”的订单
+        AND status IN (1, 2)
+        -- 3. 关键逻辑：筛选出与【今天, 今天+60天】这个时间窗口有交集的订单
+        AND start_rental_time &lt;= DATE_ADD(CURDATE(), INTERVAL 60 DAY)
+        AND end_rental_time &gt;= CURDATE()
+        ORDER BY
+        start_rental_time
+    </select>
+
+    <select id="query" resultType="com.losgai.sys.vo.ShowOrderVo">
+        select
+        ro.id as id,
+        ro.user_id as userId,
+        u.username as username,
+        ro.car_id as carId,
+        c.name as carName,
+        c.images as carImage,
+        ro.start_rental_time as startTime,
+        ro.end_rental_time as endTime,
+        ro.price as price,
+        ro.status as status,
+        ro.score as score,
+        ro.create_time as createTime,
+        ro.update_time as updateTime
+        from
+        rental_order ro
+        left join
+        car c on ro.car_id = c.id
+        left join
+        user u on ro.user_id = u.id
+        <where>
+            <!-- 基础过滤条件 -->
+            ro.deleted = 0
+            <if test="keyWord != null and keyWord.trim() != ''">
+                and (u.username like concat('%', #{keyWord, jdbcType=VARCHAR}, '%')
+                or c.name like concat('%', #{keyWord, jdbcType=VARCHAR}, '%'))
+            </if>
+            <!-- 查找与 [startDate, endDate] 时间范围有交集的订单 -->
+            <if test="startDate != null">
+                and ro.end_rental_time &gt;= #{startDate}
+            </if>
+            <if test="endDate != null">
+                and ro.start_rental_time &lt;= #{endDate}
+            </if>
+            <if test="status != null">
+                and ro.status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <select id="userQuery" resultType="com.losgai.sys.vo.ShowOrderVo">
+        select
+        ro.id as id,
+        ro.user_id as userId,
+        u.username as username,
+        ro.car_id as carId,
+        c.name as carName,
+        c.images as carImage,
+        ro.start_rental_time as startTime,
+        ro.end_rental_time as endTime,
+        ro.price as price,
+        ro.status as status,
+        ro.score as score,
+        ro.create_time as createTime,
+        ro.update_time as updateTime
+        from
+        rental_order ro
+        left join
+        car c on ro.car_id = c.id
+        left join
+        user u on ro.user_id = u.id
+        <where>
+            <!-- 基础过滤条件 -->
+            ro.deleted = 0
+            and ro.user_id = #{userId}
+            <if test="keyWord != null and keyWord.trim() != ''">
+                and (u.username like concat('%', #{keyWord, jdbcType=VARCHAR}, '%')
+                or c.name like concat('%', #{keyWord, jdbcType=VARCHAR}, '%'))
+            </if>
+            <!-- 查找与 [startDate, endDate] 时间范围有交集的订单 -->
+            <if test="start != null">
+                and ro.end_rental_time &gt;= #{start}
+            </if>
+            <if test="end != null">
+                and ro.start_rental_time &lt;= #{end}
+            </if>
+            <if test="status != null">
+                and ro.status = #{status}
+            </if>
+        </where>
+    </select>
+
     <update id="deleteByPrimaryKey" parameterType="java.lang.Long">
         update rental_order
         set deleted = 1
@@ -122,5 +224,13 @@
             update_time =  #{updateTime},
             deleted =  #{deleted}
         where   id = #{id} 
+    </update>
+
+    <update id="cancelOrder">
+        update rental_order
+        set status = 4
+        where deleted = 0
+        and status = 0
+        and id = #{id}
     </update>
 </mapper>

@@ -1,10 +1,8 @@
 package com.losgai.sys.vo;
 
-import com.losgai.sys.entity.carRental.Comment;
 import lombok.Data;
 
 import java.util.Date;
-import java.util.List;
 
 /**
  * 评论数据传输对象，支持树形结构

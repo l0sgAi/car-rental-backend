@@ -1,7 +1,6 @@
 package com.losgai.sys.mapper;
 
 import com.losgai.sys.entity.carRental.Brand;
-import com.losgai.sys.entity.carRental.Car;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;

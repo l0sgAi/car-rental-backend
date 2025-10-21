@@ -1,6 +1,5 @@
 package com.losgai.sys.vo;
 
-import com.losgai.sys.entity.carRental.Comment;
 import lombok.Data;
 
 import java.util.Date;

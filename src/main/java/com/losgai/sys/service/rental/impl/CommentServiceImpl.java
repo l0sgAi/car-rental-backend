@@ -18,13 +18,14 @@ import org.redisson.RedissonMultiLock;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Description;
+import org.springframework.data.redis.connection.StringRedisConnection;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.SetOperations;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -230,7 +231,7 @@ public class CommentServiceImpl implements CommentService {
                     // 已点赞 -> 取消点赞
                     // 如果是最后一个点赞被取消，需要防止删除key
                     // 使用-1L占位，表示该用户已取消点赞
-                    redisTemplate.opsForSet().add(key,-1L);
+                    redisTemplate.opsForSet().add(key, -1L);
                     redisTemplate.opsForSet().remove(key, userId);
                 } else {
                     // 未点赞 -> 点赞前校验数量
@@ -259,6 +260,31 @@ public class CommentServiceImpl implements CommentService {
                 lock.unlock();
             }
         }
+    }
+
+    public Map<Long, Long> queryCommentLikeCounts(List<Long> commentIds) {
+        if (CollUtil.isEmpty(commentIds)) {
+            return Collections.emptyMap();
+        }
+
+        // 批量执行 SCARD 拿点赞数
+        List<Object> results = redisTemplate.executePipelined((RedisCallback<?>) connection -> {
+            StringRedisConnection stringConn = (StringRedisConnection) connection;
+            for (Long commentId : commentIds) {
+                String key = LIKE_KEY_PREFIX + commentId;
+                stringConn.sCard(key);
+            }
+            return null;
+        });
+
+        // 组装结果
+        Map<Long, Long> likeCountMap = new HashMap<>(commentIds.size());
+        for (int i = 0; i < commentIds.size(); i++) {
+            Object countObj = results.get(i);
+            long count = countObj == null ? 0 : Long.parseLong(countObj.toString());
+            likeCountMap.put(commentIds.get(i), count);
+        }
+        return likeCountMap;
     }
 
     @Scheduled(fixedRate = 45234) // 每45秒执行一次点赞数同步
@@ -303,17 +329,29 @@ public class CommentServiceImpl implements CommentService {
 
             if (isLocked) {
                 // 阶段一：批量获取 Redis 和 DB 数据
-
                 // 1. 从 Redis 中批量获取所有点赞数据
                 // Map<commentId, Set<userId>>
                 Map<Long, Set<Long>> redisLikesMap = new HashMap<>();
+                // pipeline 批量执行 SMEMBERS
+                List<Object> pipelineResult = redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+                    // 使用 connection 的原生方法而不是强制转换为 StringRedisConnection
+                    for (Long commentId : commentIds) {
+                        String key = LIKE_KEY_PREFIX + commentId;
+                        connection.setCommands().sMembers(key.getBytes()); // ✅ 使用字节操作
+                    }
+                    return null;
+                });
+
+                // 组装结果 Map<commentId, Set<userId>>
+                int n = 0;
                 for (Long commentId : commentIds) {
-                    String key = LIKE_KEY_PREFIX + commentId;
-                    Set<Object> members = redisTemplate.opsForSet().members(key);
-                    if (CollUtil.isNotEmpty(members)) {
-                        Set<Long> userIds = members.stream() // 过滤掉空列表字符串"[
-                                .filter(obj -> Long.parseLong(obj.toString()) > 0)
-                                .map(obj -> Long.parseLong(obj.toString()))
+                    Object data = pipelineResult.get(n); // 返回的是 Set<byte[]>
+                    n++;
+                    if (data instanceof Set<?> rawSet && CollUtil.isNotEmpty(rawSet)) {
+                        Set<Long> userIds = rawSet.stream()
+                                .map(Object::toString)
+                                .map(Long::parseLong)
+                                .filter(id -> id > 0)
                                 .collect(Collectors.toSet());
                         redisLikesMap.put(commentId, userIds);
                     }
@@ -429,8 +467,13 @@ public class CommentServiceImpl implements CommentService {
             // 尝试重建缓存
             String key = rebuildLikedCache(comment.getId());
             // 判断是否已点赞，1为已点赞
-            Boolean isMember = redisTemplate.opsForSet().isMember(key, curUserId);
+            SetOperations<String, Object> stringObjectSetOperations = redisTemplate.opsForSet();
+            Boolean isMember = stringObjectSetOperations.isMember(key, curUserId);
+            Long liked = stringObjectSetOperations.size(key);
             comment.setLiked(Boolean.TRUE.equals(isMember) ? 1 : 0);
+            if (liked != null) {
+                comment.setLikeCount(liked.intValue() - 1);
+            }
         }
     }
 
@@ -440,8 +483,13 @@ public class CommentServiceImpl implements CommentService {
             // 尝试重建缓存
             String key = rebuildLikedCache(comment.getId());
             // 判断是否已点赞，1为已点赞
-            Boolean isMember = redisTemplate.opsForSet().isMember(key, curUserId);
+            SetOperations<String, Object> stringObjectSetOperations = redisTemplate.opsForSet();
+            Boolean isMember = stringObjectSetOperations.isMember(key, curUserId);
+            Long liked = stringObjectSetOperations.size(key);
             comment.setLiked(Boolean.TRUE.equals(isMember) ? 1 : 0);
+            if (liked != null) {
+                comment.setLikeCount(liked.intValue() - 1);
+            }
         }
     }
 

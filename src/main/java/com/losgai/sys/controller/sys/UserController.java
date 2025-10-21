@@ -7,7 +7,6 @@ import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.losgai.sys.common.sys.Result;
 import com.losgai.sys.dto.LoginDto;
-import com.losgai.sys.entity.ai.AiConfig;
 import com.losgai.sys.entity.sys.User;
 import com.losgai.sys.enums.ResultCodeEnum;
 import com.losgai.sys.service.sys.UserService;

@@ -1,18 +1,28 @@
 package com.losgai.sys.controller.rental;
 
 import cn.dev33.satoken.annotation.SaCheckRole;
+import cn.hutool.core.util.StrUtil;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.losgai.sys.common.sys.Result;
-import com.losgai.sys.entity.carRental.Car;
-import com.losgai.sys.service.rental.CarService;
+import com.losgai.sys.dto.BookingDto;
+import com.losgai.sys.dto.RentalOrderDto;
+import com.losgai.sys.entity.sys.User;
+import com.losgai.sys.enums.ResultCodeEnum;
+import com.losgai.sys.service.rental.OrderService;
+import com.losgai.sys.service.sys.UserService;
+import com.losgai.sys.vo.OrderVo;
+import com.losgai.sys.vo.ShowOrderVo;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
+import java.time.Instant;
+import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequiredArgsConstructor
@@ -20,56 +30,116 @@ import java.util.List;
 @Slf4j
 public class OrderController {
 
-    private final CarService carService;
+    private final OrderService orderService;
 
-    @SaCheckRole("admin")
-    @PostMapping("/admin/add")
-    @Tag(name = "管理员新增订单",description = "新增订单")
-    public Result<String> add(@RequestBody @Valid Car car) {
-//        ResultCodeEnum codeEnum = carService.add(car);
-//        if (!Objects.equals(codeEnum.getCode(), ResultCodeEnum.SUCCESS.getCode())) {
-//            return Result.info(codeEnum.getCode(),codeEnum.getMessage());
-//        }
-        return Result.success("添加成功");
+    private final UserService userService;
+
+    @GetMapping("/start")
+    @Tag(name = "准备下单",description = "进入准备下单页面")
+    public Result<OrderVo> start(@RequestParam Long carId) {
+        User userInfo = userService.getUserInfo();
+        if(StrUtil.isBlank(userInfo.getIdNumber()) || StrUtil.isBlank(userInfo.getLicenseNumber())){
+            return Result.error("无有效驾驶证或身份证，请完善个人信息");
+        }
+        OrderVo orderVo = orderService.getStartOrderVo(carId);
+        if (orderVo == null){
+            return Result.error("车辆不存在");
+        }
+        return Result.success(orderVo);
     }
 
-    @SaCheckRole("admin")
-    @PutMapping("/admin/update")
-    @Tag(name = "管理员更新订单",description = "更新订单")
-    public Result<String> update(@RequestBody @Valid Car car) {
-//        ResultCodeEnum codeEnum = carService.update(car);
-//        if (!Objects.equals(codeEnum.getCode(), ResultCodeEnum.SUCCESS.getCode())) {
-//            return Result.info(codeEnum.getCode(),codeEnum.getMessage());
-//        }
-        return Result.success("更新成功");
+    @PostMapping("/create")
+    @Tag(name = "生成订单",description = "用户选择车辆和租车时间段后，生成订单")
+    public Result<String> add(@RequestBody @Valid BookingDto bookingDto) {
+        ResultCodeEnum codeEnum = orderService.create(bookingDto);
+        if (!Objects.equals(codeEnum.getCode(), ResultCodeEnum.SUCCESS.getCode())) {
+            return Result.info(codeEnum.getCode(),codeEnum.getMessage());
+        }
+        return Result.success("下单成功");
     }
 
-    @SaCheckRole("admin")
-    @PutMapping("/admin/delete")
-    @Tag(name = "管理员删除订单",description = "删除订单")
-    public Result<String> delete(@RequestParam Long id) {
-//        ResultCodeEnum codeEnum = carService.delete(id);
-//        if (!Objects.equals(codeEnum.getCode(), ResultCodeEnum.SUCCESS.getCode())) {
-//            return Result.info(codeEnum.getCode(),codeEnum.getMessage());
-//        }
-        return Result.success("删除成功");
+    @PutMapping("/pay")
+    @Tag(name = "支付订单",description = "用户支付订单，更新订单状态")
+    public Result<String> pay(@RequestParam Long orderId) {
+        ResultCodeEnum codeEnum = orderService.pay(orderId);
+        if (!Objects.equals(codeEnum.getCode(), ResultCodeEnum.SUCCESS.getCode())) {
+            return Result.info(codeEnum.getCode(),codeEnum.getMessage());
+        }
+        return Result.success("下单成功");
     }
 
-//    @SaCheckRole("admin")
-//    @GetMapping("/admin/list")
-//    @Tag(name = "获取所有订单信息", description = "分页获取当前所有订单信息")
-//    public Result<List<Car>> query(
-//            @RequestParam(required = false) String keyWord,
-//            @RequestParam(defaultValue = "1") int pageNum,
-//            @RequestParam(defaultValue = "10") int pageSize) {
-//        // 开启分页
-//        PageHelper.startPage(pageNum, pageSize);
-//        // 执行查询
-//        List<Car> list = carService.query(keyWord);
-//        // 获取分页信息
-//        PageInfo<Car> pageInfo = new PageInfo<>(list);
-//        // 使用自定义分页返回方法
-//        return Result.page(list, pageInfo.getTotal());
-//    }
+    @PutMapping("/update")
+    @Tag(name = "修改订单",description = "用户修改订单状态，比如修改租赁时间、取消订单等")
+    public Result<String> update(@RequestBody @Valid RentalOrderDto rentalOrder) {
+        ResultCodeEnum codeEnum = orderService.update(rentalOrder);
+        if (!Objects.equals(codeEnum.getCode(), ResultCodeEnum.SUCCESS.getCode())) {
+            return Result.info(codeEnum.getCode(),codeEnum.getMessage());
+        }
+        return Result.success("下单成功");
+    }
+
+
+    @SaCheckRole("admin")
+    @GetMapping("/admin/list")
+    @Tag(name = "获取所有订单信息", description = "分页获取当前所有订单信息")
+    public Result<List<ShowOrderVo>> query(
+            @RequestParam(required = false) String keyWord,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        // 开启分页
+        PageHelper.startPage(pageNum, pageSize);
+        // 执行查询
+        // 解析为Date查询
+        Date start = null;
+        if(StrUtil.isNotBlank(startDate)){
+            Instant instant = Instant.parse(startDate);
+            start = Date.from(instant);
+        }
+        Date end = null;
+        if(StrUtil.isNotBlank(endDate)){
+            Instant instant = Instant.parse(endDate);
+            start = Date.from(instant);
+        }
+        // 执行条件查询
+        List<ShowOrderVo> list = orderService.query(keyWord,start,end,status);
+        // 获取分页信息
+        PageInfo<ShowOrderVo> pageInfo = new PageInfo<>(list);
+        // 使用自定义分页返回方法
+        return Result.page(list, pageInfo.getTotal());
+    }
+
+    @GetMapping("/user/list")
+    @Tag(name = "获取所有订单信息", description = "用户分页获取当前所有订单信息")
+    public Result<List<ShowOrderVo>> userQuery(
+            @RequestParam(required = false) String keyWord,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        // 开启分页
+        PageHelper.startPage(pageNum, pageSize);
+        // 执行查询
+        // 解析为Date查询
+        Date start = null;
+        if(StrUtil.isNotBlank(startDate)){
+            Instant instant = Instant.parse(startDate);
+            start = Date.from(instant);
+        }
+        Date end = null;
+        if(StrUtil.isNotBlank(endDate)){
+            Instant instant = Instant.parse(endDate);
+            start = Date.from(instant);
+        }
+        // 执行条件查询
+        List<ShowOrderVo> list = orderService.userQuery(keyWord,start,end,status);
+        // 获取分页信息
+        PageInfo<ShowOrderVo> pageInfo = new PageInfo<>(list);
+        // 使用自定义分页返回方法
+        return Result.page(list, pageInfo.getTotal());
+    }
 
 }

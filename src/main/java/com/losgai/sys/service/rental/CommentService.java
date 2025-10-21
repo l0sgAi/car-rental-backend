@@ -6,6 +6,7 @@ import com.losgai.sys.vo.CommentVo;
 import com.losgai.sys.vo.TopCommentVo;
 
 import java.util.List;
+import java.util.Map;
 
 public interface CommentService {
     ResultCodeEnum add(Comment comment, Long userId);
@@ -23,4 +24,6 @@ public interface CommentService {
     List<TopCommentVo> getMore(Long carId);
 
     ResultCodeEnum like(Long carId, Long userId);
+
+    Map<Long, Long> queryCommentLikeCounts(List<Long> commentIds);
 }

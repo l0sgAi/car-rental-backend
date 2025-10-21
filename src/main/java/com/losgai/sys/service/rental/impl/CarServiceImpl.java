@@ -1,6 +1,5 @@
 package com.losgai.sys.service.rental.impl;
 
-import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.Result;
@@ -22,6 +21,7 @@ import com.losgai.sys.service.rental.CarService;
 import com.losgai.sys.util.ElasticsearchIndexUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.context.annotation.Description;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -102,6 +102,7 @@ public class CarServiceImpl implements CarService {
     }
 
     @Override
+    @CacheEvict(value = "carBookingsDateCache", key = "#car.getId()")
     public ResultCodeEnum update(Car car) {
         car.setUpdateTime(Date.from(Instant.now()));
         carMapper.updateByPrimaryKeySelective(car);
@@ -121,6 +122,7 @@ public class CarServiceImpl implements CarService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "carBookingsDateCache", key = "#id")
     public ResultCodeEnum delete(Long id) {
         carMapper.deleteByPrimaryKey(id);
         carMapper.deleteOrdersByCarId(id);

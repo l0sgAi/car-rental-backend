@@ -5,22 +5,20 @@ import com.losgai.sys.entity.ai.AiConfig;
 import com.losgai.sys.entity.ai.AiMessagePair;
 import com.losgai.sys.entity.carRental.Car;
 import com.losgai.sys.entity.carRental.Comment;
+import com.losgai.sys.entity.carRental.RentalOrder;
 import com.losgai.sys.global.EsConstants;
 import com.losgai.sys.mapper.AiConfigMapper;
 import com.losgai.sys.mapper.CommentMapper;
+import com.losgai.sys.mapper.RentalOrderMapper;
 import com.losgai.sys.service.ai.AiMessagePairService;
 import com.losgai.sys.service.rental.CarService;
-import com.losgai.sys.service.rental.CommentService;
 import com.losgai.sys.util.ModelBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.context.annotation.Description;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
-import reactor.core.publisher.Flux;
 
 import java.io.IOException;
 import java.util.List;
@@ -28,11 +26,13 @@ import java.util.List;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class AiMessageConsumer {
+public class Consumer {
 
     private final AiMessagePairService aiMessagePairEsService;
 
     private final CarService carService;
+
+    private final RentalOrderMapper rentalOrderMapper;
 
     private final CommentMapper commentMapper;
 
@@ -66,18 +66,19 @@ public class AiMessageConsumer {
             "Your response must ALWAYS be either `0` or `1` and nothing else.";
 
     @RabbitListener(queues = RabbitMQAiMessageConfig.QUEUE_NAME)
+    @Description("AI对话记录同步-")
     public void receiveMessage(AiMessagePair message) {
-        log.info("[MQ]消费者收到消息：{}", message);
-        boolean result = false;
+        log.info("[MQ]AI对话记录同步-消费者收到消息：{}", message);
+        boolean result;
         try {
             result = aiMessagePairEsService.insertAiMessagePairDoc(EsConstants.INDEX_NAME_AI_MSG, message);
             if (result) {
-                log.info("[MQ]成功插入 ES，消息ID: {}", message.getId());
+                log.info("[MQ]AI对话记录同步-成功插入 ES，消息ID: {}", message.getId());
             } else {
-                log.warn("[MQ]插入 ES 失败，消息ID: {}", message.getId());
+                log.warn("[MQ]AI对话记录同步-插入 ES 失败，消息ID: {}", message.getId());
             }
         } catch (IOException e) {
-            log.error("[MQ]插入 ES 异常，消息ID: {}", message.getId(), e);
+            log.error("[MQ]AI对话记录同步-插入 ES 异常，消息ID: {}", message.getId(), e);
         }
 
     }
@@ -85,17 +86,17 @@ public class AiMessageConsumer {
     @RabbitListener(queues = RabbitMQAiMessageConfig.QUEUE_NAME_CAR)
     @Description("接收单个车辆信息")
     public void receiveCarMessageAdd(Car message) {
-        log.info("[MQ]消费者收到消息：{}", message);
+        log.info("[MQ]接收单个车辆信息-消费者收到消息：{}", message);
         boolean result;
         try {
             result = carService.insertESDoc(EsConstants.INDEX_NAME_CAR_RENTAL, message);
             if (result) {
-                log.info("[MQ]成功插入 ES，消息ID: {}", message.getId());
+                log.info("[MQ]接收单个车辆信息-成功插入 ES，消息ID: {}", message.getId());
             } else {
-                log.warn("[MQ]插入 ES 失败，消息ID: {}", message.getId());
+                log.warn("[MQ]接收单个车辆信息-插入 ES 失败，消息ID: {}", message.getId());
             }
         } catch (IOException e) {
-            log.error("[MQ]插入 ES 异常，消息ID: {}", message.getId(), e);
+            log.error("[MQ]接收单个车辆信息-插入 ES 异常，消息ID: {}", message.getId(), e);
         }
 
     }
@@ -103,17 +104,17 @@ public class AiMessageConsumer {
     @RabbitListener(queues = RabbitMQAiMessageConfig.QUEUE_NAME_CAR_BATCH)
     @Description("接收多个车辆信息")
     public void receiveCarsMessageAdd(List<Car> message) {
-        log.info("[MQ]消费者收到消息：{}", message);
+        log.info("[MQ]接收多个车辆信息-消费者收到消息：{}", message);
         boolean result;
         try {
             result = carService.insertESDocBatch(EsConstants.INDEX_NAME_CAR_RENTAL, message);
             if (result) {
-                log.info("[MQ]成功批量插入 ES");
+                log.info("[MQ]接收多个车辆信息-成功批量插入 ES");
             } else {
-                log.warn("[MQ]批量插入 ES 失败");
+                log.warn("[MQ]接收多个车辆信息-批量插入 ES 失败");
             }
         } catch (IOException e) {
-            log.error("[MQ]批量插入 ES 异常", e);
+            log.error("[MQ]接收多个车辆信息-批量插入 ES 异常", e);
         }
 
     }
@@ -126,12 +127,12 @@ public class AiMessageConsumer {
         try {
             result = carService.updateESDoc(EsConstants.INDEX_NAME_CAR_RENTAL, message);
             if (result) {
-                log.info("[MQ]成功批量插入 ES");
+                log.info("[MQ]更新车辆信息-成功批量插入 ES");
             } else {
-                log.warn("[MQ]批量插入 ES 失败");
+                log.warn("[MQ]更新车辆信息-批量插入 ES 失败");
             }
         } catch (IOException e) {
-            log.error("[MQ]批量插入 ES 异常", e);
+            log.error("[MQ]更新车辆信息-批量插入 ES 异常", e);
         }
 
     }
@@ -144,12 +145,12 @@ public class AiMessageConsumer {
         try {
             result = carService.deleteESDoc(EsConstants.INDEX_NAME_CAR_RENTAL, String.valueOf(message));
             if (result) {
-                log.info("[MQ]成功批量插入 ES");
+                log.info("[MQ]删除车辆信息-成功批量插入 ES");
             } else {
-                log.warn("[MQ]批量插入 ES 失败");
+                log.warn("[MQ]删除车辆信息-批量插入 ES 失败");
             }
         } catch (IOException e) {
-            log.error("[MQ]批量插入 ES 异常", e);
+            log.error("[MQ]删除车辆信息-批量插入 ES 异常", e);
         }
 
     }
@@ -178,6 +179,13 @@ public class AiMessageConsumer {
         }
     }
 
-
+    // 监听处理队列订单超时
+    @RabbitListener(queues = RabbitMQAiMessageConfig.ORDER_PROCESS_QUEUE)
+    @Description("处理订单超时")
+    public void receiveOrderDelay(RentalOrder message) {
+        log.info("[MQ]订单超时-消费者收到消息：{}", message);
+        // 更新订单为已经取消
+        rentalOrderMapper.cancelOrder(message.getId());
+    }
 
 }

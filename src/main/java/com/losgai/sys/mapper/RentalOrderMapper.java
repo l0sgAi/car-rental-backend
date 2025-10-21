@@ -1,7 +1,13 @@
 package com.losgai.sys.mapper;
 
+import com.losgai.sys.dto.BookingSlot;
 import com.losgai.sys.entity.carRental.RentalOrder;
+import com.losgai.sys.vo.ShowOrderVo;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+import java.util.Date;
+import java.util.List;
 
 /**
 * @author miesme
@@ -23,5 +29,26 @@ public interface RentalOrderMapper {
     int updateByPrimaryKeySelective(RentalOrder record);
 
     int updateByPrimaryKey(RentalOrder record);
+
+    /**
+     * 根据车辆ID，查询未来60天内所有有效的、已占用的预订时间段。
+     * “有效”指订单状态为“已支付”或“租赁中”。
+     * @param carId 车辆ID
+     * @return 预订时间段列表
+     */
+    List<BookingSlot> findFutureBookingsByCarId(@Param("carId") Long carId);
+
+    List<ShowOrderVo> query(String keyWord,
+                            Date startDate,
+                            Date endDate,
+                            Integer status);
+
+    List<ShowOrderVo> userQuery(String keyWord,
+                                Date start,
+                                Date end,
+                                Integer status,
+                                Long userId);
+
+    void cancelOrder(Long id);
 
 }

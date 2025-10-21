@@ -9,7 +9,6 @@ import com.losgai.sys.enums.ResultCodeEnum;
 import com.losgai.sys.mapper.CommentMapper;
 import com.losgai.sys.mapper.RentalOrderMapper;
 import com.losgai.sys.mapper.UserMapper;
-import com.losgai.sys.service.sys.FileUploadService;
 import com.losgai.sys.service.sys.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

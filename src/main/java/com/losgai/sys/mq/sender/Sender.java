@@ -3,6 +3,7 @@ package com.losgai.sys.mq.sender;
 import com.losgai.sys.entity.ai.AiMessagePair;
 import com.losgai.sys.entity.carRental.Car;
 import com.losgai.sys.entity.carRental.Comment;
+import com.losgai.sys.entity.carRental.RentalOrder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
@@ -38,5 +39,9 @@ public class Sender {
     // 发送评论审查任务信息
     public void sendCarReview(String exchange, String routingKey, Comment comment) {
         rabbitTemplate.convertAndSend(exchange, routingKey, comment);
+    }
+
+    public void sendOrder(String exchange, String routingKey, RentalOrder order) {
+        rabbitTemplate.convertAndSend(exchange, routingKey, order);
     }
 }

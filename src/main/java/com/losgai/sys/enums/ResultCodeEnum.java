@@ -5,29 +5,32 @@ import lombok.Getter;
 @Getter // 提供获取属性值的getter方法
 public enum ResultCodeEnum {
 
-    SUCCESS(200 , "操作成功") ,
+    SUCCESS(200, "操作成功"),
     SERVICE_ERROR(500, "内部错误"),
     ELASTIC_ERROR(510, "Elasticsearch错误"),
-    LOGIN_ERROR(201 , "用户名或者密码错误"),
-    VALIDATE_CODE_ERROR(202 , "验证码错误") ,
-    LOGIN_AUTH(208 , "用户未登录"),
-    DUPLICATED(205 , "身份证、驾驶证或手机号重复"),
-    BLANK_INPUT(206 , "空的用户名或密码"),
-    USER_NAME_IS_EXISTS(209 , "邮箱/手机号已经存在"),
-    SYSTEM_ERROR(9999 , "您的网络有问题请稍后重试"),
+    LOGIN_ERROR(201, "用户名或者密码错误"),
+    VALIDATE_CODE_ERROR(202, "验证码错误"),
+    LOGIN_AUTH(208, "用户未登录"),
+    DUPLICATED(205, "身份证、驾驶证或手机号重复"),
+    BLANK_INPUT(206, "空的用户名或密码"),
+    USER_NAME_IS_EXISTS(209, "邮箱/手机号已经存在"),
+    SYSTEM_ERROR(9999, "您的网络有问题请稍后重试"),
     DATA_ERROR(204, "数据异常"),
     NO_USER(205, "不是合法用户"),
-    ACCOUNT_STOP( 216, "账号已停用"),
+    ACCOUNT_STOP(216, "账号已停用"),
 
 
-    ;
+    SYSTEM_BUSY(511, "系统繁忙，请重试"),
+    DATE_ERROR(512, "选择的日期不合法"),
+    NO_SUCH_CAR(513, "没有此车辆"),
+    LESS_THAN_LIMIT(514,"租期需超过最小租期天数");
 
-    private Integer code ;      // 业务状态码
-    private String message ;    // 响应消息
+    private Integer code;      // 业务状态码
+    private String message;    // 响应消息
 
-    private ResultCodeEnum(Integer code , String message) {
-        this.code = code ;
-        this.message = message ;
+    private ResultCodeEnum(Integer code, String message) {
+        this.code = code;
+        this.message = message;
     }
 
 }

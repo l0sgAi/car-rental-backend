@@ -1,22 +1,19 @@
 package com.losgai.sys.controller.rental;
 
-import cn.dev33.satoken.annotation.SaCheckRole;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.losgai.sys.common.sys.Result;
 import com.losgai.sys.entity.carRental.Brand;
-import com.losgai.sys.entity.carRental.Car;
-import com.losgai.sys.enums.ResultCodeEnum;
 import com.losgai.sys.service.rental.BrandService;
-import com.losgai.sys.service.rental.CarService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import javax.validation.Valid;
 import java.util.List;
-import java.util.Objects;
 
 @RestController
 @RequiredArgsConstructor

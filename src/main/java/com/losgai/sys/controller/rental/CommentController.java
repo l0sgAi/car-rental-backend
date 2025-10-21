@@ -13,12 +13,11 @@ import com.losgai.sys.vo.TopCommentVo;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @RestController
@@ -130,6 +129,13 @@ public class CommentController {
             return Result.info(codeEnum.getCode(),codeEnum.getMessage());
         }
         return Result.success("点赞成功");
+    }
+
+    @GetMapping("/getCommentLikeCounts")
+    @Tag(name = "获取评论点赞数", description = "获取评论点赞数")
+    public Result<Map<Long, Long>> getCommentLikeCounts(@RequestParam List<Long> commentIds) {
+        Map<Long, Long> commentLikeCounts = commentService.queryCommentLikeCounts(commentIds);
+        return Result.success(commentLikeCounts);
     }
 
 }

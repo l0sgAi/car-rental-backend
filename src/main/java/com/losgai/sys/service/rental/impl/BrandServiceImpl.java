@@ -1,7 +1,6 @@
 package com.losgai.sys.service.rental.impl;
 
 import com.losgai.sys.entity.carRental.Brand;
-import com.losgai.sys.entity.carRental.Car;
 import com.losgai.sys.mapper.BrandMapper;
 import com.losgai.sys.service.rental.BrandService;
 import lombok.RequiredArgsConstructor;
