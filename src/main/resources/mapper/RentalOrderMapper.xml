@@ -248,4 +248,12 @@
         and status = 0
         and id = #{id}
     </update>
+
+    <update id="updateStatus">
+        update rental_order
+        set status = #{status}
+        where deleted = 0
+        and id = #{orderId}
+    </update>
+
 </mapper>

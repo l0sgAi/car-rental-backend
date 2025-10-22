@@ -66,11 +66,11 @@ public class OrderController {
     @PutMapping("/pay")
     @Tag(name = "支付订单",description = "用户支付订单，更新订单状态")
     public Result<String> pay(@RequestParam Long orderId) {
-        ResultCodeEnum codeEnum = orderService.pay(orderId);
-        if (!Objects.equals(codeEnum.getCode(), ResultCodeEnum.SUCCESS.getCode())) {
-            return Result.info(codeEnum.getCode(),codeEnum.getMessage());
+        String payForm = orderService.pay(orderId);
+        if (!Objects.equals(payForm, ResultCodeEnum.SUCCESS.getMessage())) {
+            return Result.error(payForm);
         }
-        return Result.success("下单成功");
+        return Result.success(payForm);
     }
 
     @PutMapping("/update")

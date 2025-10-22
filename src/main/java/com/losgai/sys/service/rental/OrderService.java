@@ -21,10 +21,11 @@ public interface OrderService {
 
     List<ShowOrderVo> query(String keyWord, Date startDate, Date endDate, Integer status);
 
-    ResultCodeEnum pay(Long orderId);
+    String pay(Long orderId);
 
     ResultCodeEnum update(RentalOrderDto rentalOrder);
 
     List<ShowOrderVo> userQuery(String keyWord, Date start, Date end, Integer status);
 
+    void updateOrderStatusAfterPayment(Long orderId, String tradeNo);
 }

@@ -52,4 +52,6 @@ public interface RentalOrderMapper {
     void cancelOrder(Long id);
 
     List<RentalOrder> selectAllOrders();
+
+    void updateStatus(Long orderId, Integer status);
 }

@@ -17,6 +17,7 @@ import com.losgai.sys.enums.ResultCodeEnum;
 import com.losgai.sys.mapper.CarMapper;
 import com.losgai.sys.mapper.RentalOrderMapper;
 import com.losgai.sys.mq.sender.Sender;
+import com.losgai.sys.service.rental.AlipayService;
 import com.losgai.sys.service.rental.CalculationService;
 import com.losgai.sys.service.rental.OrderService;
 import com.losgai.sys.vo.OrderVo;
@@ -55,6 +56,8 @@ public class OrderServiceImpl implements OrderService {
 
     private final CalculationService calculationService;
 
+    private final AlipayService alipayService;
+
     private final RedissonClient redissonClient;
 
     private final RedisTemplate<String, Object> redisTemplate;
@@ -62,7 +65,7 @@ public class OrderServiceImpl implements OrderService {
     private final Sender sender;
 
     public static final String LOCK_KEY = "lock:car:";
-    private static final String DATE_CACHE_PREFIX = "carBookingsDateCache::";
+    public static final String DATE_CACHE_PREFIX = "carBookingsDateCache::";
 
     @Override
     @Description("获取准备下单信息，包括封装可租时间段")
@@ -150,7 +153,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Description("支付订单")
     @Transactional
-    public ResultCodeEnum pay(Long orderId) {
+    public String pay(Long orderId) {
         RentalOrder rentalOrder = rentalOrderMapper.selectByPrimaryKey(orderId);
         Long carId = rentalOrder.getCarId();
         // 分布式锁解决超卖问题
@@ -169,8 +172,8 @@ public class OrderServiceImpl implements OrderService {
                 /**
                  * 1.检查订单状态 如果为0才进行下一步
                  * 2.再次检查车辆状态，包括是否被删除或日期重合
-                 * 3.请求支付，通过返回码来判断支付结果
-                 * 4.如果成功，更新订单状态，失败返回状态码
+                 * 3.请求支付，生成支付表单
+                 * 4.通过支付宝的回调状态来更新订单
                  * */
                 rentalOrder = rentalOrderMapper.selectByPrimaryKey(orderId);
                 if (rentalOrder.getStatus() == 0) {
@@ -178,49 +181,47 @@ public class OrderServiceImpl implements OrderService {
                     Car car = carMapper.selectByPrimaryKey(carId);
                     // 不可租或删除的情况
                     if (car == null || car.getStatus() == 1) {
-                        return ResultCodeEnum.NO_SUCH_CAR;
+                        return ResultCodeEnum.NO_SUCH_CAR.getMessage();
                     }
                     // 检查车辆日期冲突
-                    TreeMap<Date, Date> carBookingsAsTreeMap = calculationService.getCarBookingsAsTreeMap(carId);
-                    // 如果当前订单的起止时间与缓存中的时间段有冲突，则返回错误码
-                    Date rentalStartTime = rentalOrder.getStartRentalTime();
-                    Date rentalEndTime = rentalOrder.getEndRentalTime();
-
-                    // 找到小于等于当前起始时间的最近一段
-                    Map.Entry<Date, Date> floorEntry = carBookingsAsTreeMap.floorEntry(rentalStartTime);
-                    // 找到大于等于当前起始时间的时间段
-                    Map.Entry<Date, Date> ceilingEntry = carBookingsAsTreeMap.ceilingEntry(rentalStartTime);
-
-                    // 检查与 floorEntry 冲突
-                    if (floorEntry != null) {
-                        Date existEnd = floorEntry.getValue();
-                        if (rentalStartTime.before(existEnd)) {  // 当前订单开始时间 < 已有区间结束时间
-                            return ResultCodeEnum.DATE_ERROR;
-                        }
+                    if(!OrderDateRangeCheck(rentalOrder)){
+                        return ResultCodeEnum.DATE_ERROR.getMessage();
                     }
 
-                    // 检查与 ceilingEntry 冲突
-                    if (ceilingEntry != null) {
-                        Date existStart = ceilingEntry.getKey();
-                        if (rentalEndTime.after(existStart)) {  // 当前订单结束时间 > 下个区间开始时间
-                            return ResultCodeEnum.DATE_ERROR;
-                        }
+                    // 支付逻辑
+                    // 调用支付服务创建支付订单
+                    String subject = "租车订单-" + carId + " "
+                            + rentalOrder.getStartRentalTime()
+                            + "~" + rentalOrder.getEndRentalTime();
+
+                    String paymentForm = alipayService.createPayment(
+                            orderId,
+                            rentalOrder.getPrice(),
+                            subject
+                    );
+
+                    if (paymentForm != null) {
+                        // 支付订单创建成功
+                        // 待支付宝回调成功后再更新数据库和缓存
+                        log.info("订单 {} 支付表单创建成功", orderId);
+                        // 需要返回一个包含支付表单的对象
+                        return paymentForm;
+                    } else {
+                        // 支付订单创建失败
+                        log.error("订单 {} 支付表单创建失败", orderId);
+                        return ResultCodeEnum.PAYMENT_FAILED.getMessage();
                     }
-
-                    // TODO: 添加支付逻辑-支付宝沙箱
-
                 }
-                /// 支付状态写入前删除被占时间缓存
-                redisTemplate.delete(DATE_CACHE_PREFIX + carId);
+
             } else {
                 // 3. 获取锁失败，说明有其他请求正在处理此车辆的订单
                 log.warn("线程 {} 获取车辆 {} 的锁失败，系统繁忙", Thread.currentThread().threadId(), carId);
-                return ResultCodeEnum.SYSTEM_BUSY;
+                return ResultCodeEnum.SYSTEM_BUSY.getMessage();
             }
         } catch (InterruptedException e) {
             log.error("获取分布式锁时被中断", e);
             Thread.currentThread().interrupt();
-            return ResultCodeEnum.SYSTEM_ERROR;
+            return ResultCodeEnum.SYSTEM_ERROR.getMessage();
         } finally {
             // 4. 无论如何，最后都要释放锁
             if (isLocked && carLock.isHeldByCurrentThread()) {
@@ -228,7 +229,7 @@ public class OrderServiceImpl implements OrderService {
                 log.info("线程 {} 释放车辆 {} 的锁", Thread.currentThread().threadId(), carId);
             }
         }
-        return ResultCodeEnum.SUCCESS;
+        return ResultCodeEnum.SYSTEM_ERROR.getMessage();
     }
 
     @Description("更新订单，订单状态为1=已支付或2=租赁中，需要加分布式锁")
@@ -249,10 +250,7 @@ public class OrderServiceImpl implements OrderService {
             if (isLocked) {
                 // 2. 获取锁成功，执行核心业务逻辑
                 log.info("线程 {} 获取车辆 {} 的锁成功", Thread.currentThread().threadId(), carId);
-                // TODO: 处理核心业务逻辑
-
-                /// 更新写入前删除被占时间缓存
-                redisTemplate.delete(DATE_CACHE_PREFIX + carId);
+                // TODO: 添加更新逻辑
 
             } else {
                 // 3. 获取锁失败，说明有其他请求正在处理此车辆的订单
@@ -277,6 +275,11 @@ public class OrderServiceImpl implements OrderService {
     @Description("用户查询自己的订单")
     public List<ShowOrderVo> userQuery(String keyWord, Date start, Date end, Integer status) {
         return rentalOrderMapper.userQuery(keyWord, start, end, status, StpUtil.getLoginIdAsLong());
+    }
+
+    @Override
+    public void updateOrderStatusAfterPayment(Long orderId, String tradeNo) {
+        rentalOrderMapper.updateStatus(orderId, 1);
     }
 
     @Override
@@ -453,5 +456,40 @@ public class OrderServiceImpl implements OrderService {
         contentWriteCellStyle.setHorizontalAlignment(HorizontalAlignment.LEFT);
 
         return new HorizontalCellStyleStrategy(headWriteCellStyle, contentWriteCellStyle);
+    }
+
+    /**
+     * 检查车辆时间段是否可租
+     * @param rentalOrder
+     * @return true/false 是否合法
+     */
+    private boolean OrderDateRangeCheck(RentalOrder rentalOrder) {
+        // 检查车辆日期冲突
+        TreeMap<Date, Date> carBookingsAsTreeMap = calculationService.getCarBookingsAsTreeMap(rentalOrder.getCarId());
+        // 如果当前订单的起止时间与缓存中的时间段有冲突，则返回错误码
+        Date rentalStartTime = rentalOrder.getStartRentalTime();
+        Date rentalEndTime = rentalOrder.getEndRentalTime();
+
+        // 找到小于等于当前起始时间的最近一段
+        Map.Entry<Date, Date> floorEntry = carBookingsAsTreeMap.floorEntry(rentalStartTime);
+        // 找到大于等于当前起始时间的时间段
+        Map.Entry<Date, Date> ceilingEntry = carBookingsAsTreeMap.ceilingEntry(rentalStartTime);
+
+        // 检查与 floorEntry 冲突
+        if (floorEntry != null) {
+            Date existEnd = floorEntry.getValue();
+            if (rentalStartTime.before(existEnd)) {  // 当前订单开始时间 < 已有区间结束时间
+                return false;
+            }
+        }
+
+        // 检查与 ceilingEntry 冲突
+        if (ceilingEntry != null) {
+            Date existStart = ceilingEntry.getKey();
+            // 当前订单结束时间 > 下个区间开始时间
+            return !rentalEndTime.after(existStart);
+        }
+
+        return true;
     }
 }
