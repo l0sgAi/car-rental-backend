@@ -14,11 +14,16 @@ import com.losgai.sys.service.sys.UserService;
 import com.losgai.sys.vo.OrderVo;
 import com.losgai.sys.vo.ShowOrderVo;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
@@ -144,6 +149,28 @@ public class OrderController {
         PageHelper.clearPage();
         // 使用自定义分页返回方法
         return Result.page(list, pageInfo.getTotal());
+    }
+
+    /**
+     * 导出订单台账
+     */
+    @SaCheckRole("admin")
+    @GetMapping("/admin/export")
+    @Tag(name = "导出订单台账", description = "导出所有订单台账")
+    public void exportOrders(HttpServletResponse response) throws IOException {
+        // 设置响应头
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setCharacterEncoding("utf-8");
+
+        // 生成文件名：订单台账_导出时间.xlsx
+        String fileName = URLEncoder.encode("订单台账_" +
+                        new SimpleDateFormat("yyyyMMddHHmmss").format(new Date()), StandardCharsets.UTF_8)
+                .replaceAll("\\+", "%20");
+
+        response.setHeader("Content-disposition", "attachment;filename*=utf-8''" + fileName + ".xlsx");
+
+        // 调用服务层导出
+        orderService.exportOrdersToExcel(response.getOutputStream());
     }
 
 }

@@ -1,8 +1,15 @@
 package com.losgai.sys.service.rental.impl;
 
 import cn.dev33.satoken.stp.StpUtil;
+import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.ExcelWriter;
+import com.alibaba.excel.write.metadata.WriteSheet;
+import com.alibaba.excel.write.metadata.style.WriteCellStyle;
+import com.alibaba.excel.write.style.HorizontalCellStyleStrategy;
 import com.losgai.sys.config.RabbitMQAiMessageConfig;
 import com.losgai.sys.dto.BookingDto;
+import com.losgai.sys.dto.OrderDetailExportDTO;
+import com.losgai.sys.dto.OrderStatisticsExportDTO;
 import com.losgai.sys.dto.RentalOrderDto;
 import com.losgai.sys.entity.carRental.Car;
 import com.losgai.sys.entity.carRental.RentalOrder;
@@ -14,8 +21,10 @@ import com.losgai.sys.service.rental.CalculationService;
 import com.losgai.sys.service.rental.OrderService;
 import com.losgai.sys.vo.OrderVo;
 import com.losgai.sys.vo.ShowOrderVo;
+import jakarta.servlet.ServletOutputStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.context.annotation.Description;
@@ -23,15 +32,17 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.util.Date;
-import java.util.List;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -155,14 +166,50 @@ public class OrderServiceImpl implements OrderService {
             if (isLocked) {
                 // 2. 获取锁成功，执行核心业务逻辑
                 log.info("线程 {} 获取车辆 {} 的锁成功", Thread.currentThread().threadId(), carId);
-                // TODO: 处理核心业务逻辑
                 /**
                  * 1.检查订单状态 如果为0才进行下一步
                  * 2.再次检查车辆状态，包括是否被删除或日期重合
                  * 3.请求支付，通过返回码来判断支付结果
                  * 4.如果成功，更新订单状态，失败返回状态码
                  * */
+                rentalOrder = rentalOrderMapper.selectByPrimaryKey(orderId);
+                if (rentalOrder.getStatus() == 0) {
+                    // 获取车辆信息
+                    Car car = carMapper.selectByPrimaryKey(carId);
+                    // 不可租或删除的情况
+                    if (car == null || car.getStatus() == 1) {
+                        return ResultCodeEnum.NO_SUCH_CAR;
+                    }
+                    // 检查车辆日期冲突
+                    TreeMap<Date, Date> carBookingsAsTreeMap = calculationService.getCarBookingsAsTreeMap(carId);
+                    // 如果当前订单的起止时间与缓存中的时间段有冲突，则返回错误码
+                    Date rentalStartTime = rentalOrder.getStartRentalTime();
+                    Date rentalEndTime = rentalOrder.getEndRentalTime();
 
+                    // 找到小于等于当前起始时间的最近一段
+                    Map.Entry<Date, Date> floorEntry = carBookingsAsTreeMap.floorEntry(rentalStartTime);
+                    // 找到大于等于当前起始时间的时间段
+                    Map.Entry<Date, Date> ceilingEntry = carBookingsAsTreeMap.ceilingEntry(rentalStartTime);
+
+                    // 检查与 floorEntry 冲突
+                    if (floorEntry != null) {
+                        Date existEnd = floorEntry.getValue();
+                        if (rentalStartTime.before(existEnd)) {  // 当前订单开始时间 < 已有区间结束时间
+                            return ResultCodeEnum.DATE_ERROR;
+                        }
+                    }
+
+                    // 检查与 ceilingEntry 冲突
+                    if (ceilingEntry != null) {
+                        Date existStart = ceilingEntry.getKey();
+                        if (rentalEndTime.after(existStart)) {  // 当前订单结束时间 > 下个区间开始时间
+                            return ResultCodeEnum.DATE_ERROR;
+                        }
+                    }
+
+                    // TODO: 添加支付逻辑-支付宝沙箱
+
+                }
                 /// 支付状态写入前删除被占时间缓存
                 redisTemplate.delete(DATE_CACHE_PREFIX + carId);
             } else {
@@ -232,6 +279,43 @@ public class OrderServiceImpl implements OrderService {
         return rentalOrderMapper.userQuery(keyWord, start, end, status, StpUtil.getLoginIdAsLong());
     }
 
+    @Override
+    public void exportOrdersToExcel(OutputStream outputStream) throws IOException {
+        // 1. 查询所有订单（未删除的）
+        List<RentalOrder> orders = rentalOrderMapper.selectAllOrders();
+
+        // 2. 转换为导出DTO
+        List<OrderDetailExportDTO> detailList = convertToDetailDTO(orders);
+
+        // 3. 计算统计信息
+        List<OrderStatisticsExportDTO> statisticsList = calculateStatistics(orders);
+
+        // 4. 使用 EasyExcel 写入多个 Sheet
+        ExcelWriter excelWriter = null;
+        try {
+            excelWriter = EasyExcel.write(outputStream)
+                    .registerWriteHandler(createCellStyleStrategy())
+                    .build();
+
+            // Sheet1: 订单明细
+            WriteSheet detailSheet = EasyExcel.writerSheet(0, "订单明细")
+                    .head(OrderDetailExportDTO.class)
+                    .build();
+            excelWriter.write(detailList, detailSheet);
+
+            // Sheet2: 统计信息
+            WriteSheet statisticsSheet = EasyExcel.writerSheet(1, "统计信息")
+                    .head(OrderStatisticsExportDTO.class)
+                    .build();
+            excelWriter.write(statisticsList, statisticsSheet);
+
+        } finally {
+            if (excelWriter != null) {
+                excelWriter.finish();
+            }
+        }
+    }
+
 
     @Override
     @Description("管理员查询所有订单")
@@ -254,5 +338,120 @@ public class OrderServiceImpl implements OrderService {
             }
         }
         return false;
+    }
+
+    /**
+     * 转换订单实体为导出DTO
+     */
+    private List<OrderDetailExportDTO> convertToDetailDTO(List<RentalOrder> orders) {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        SimpleDateFormat dateTimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+        List<OrderDetailExportDTO> result = new ArrayList<>();
+        for (int i = 0; i < orders.size(); i++) {
+            RentalOrder order = orders.get(i);
+            OrderDetailExportDTO dto = new OrderDetailExportDTO();
+
+            dto.setSerialNumber(i + 1);
+            dto.setOrderId(order.getId());
+            dto.setUserId(order.getUserId());
+            dto.setCarId(order.getCarId());
+            dto.setStartRentalTime(dateFormat.format(order.getStartRentalTime()));
+            dto.setEndRentalTime(dateFormat.format(order.getEndRentalTime()));
+            dto.setAddress(order.getAddress());
+            dto.setPrice(order.getPrice());
+            dto.setStatus(convertStatus(order.getStatus()));
+            dto.setScore(order.getScore() != null ? order.getScore().toString() : "-");
+            dto.setCreateTime(dateTimeFormat.format(order.getCreateTime()));
+            dto.setUpdateTime(dateTimeFormat.format(order.getUpdateTime()));
+
+            result.add(dto);
+        }
+
+        return result;
+    }
+
+    /**
+     * 状态转义
+     */
+    private String convertStatus(Integer status) {
+        if (status == null) return "未知";
+        return switch (status) {
+            case 0 -> "待支付";
+            case 1 -> "已支付";
+            case 2 -> "租赁中";
+            case 3 -> "已完成";
+            case 4 -> "已取消";
+            default -> "未知";
+        };
+    }
+
+    /**
+     * 计算统计信息
+     */
+    private List<OrderStatisticsExportDTO> calculateStatistics(List<RentalOrder> orders) {
+        List<OrderStatisticsExportDTO> result = new ArrayList<>();
+
+        // 订单总数
+        int totalCount = orders.size();
+        result.add(new OrderStatisticsExportDTO("订单总数", String.valueOf(totalCount)));
+
+        // 各状态订单数
+        Map<Integer, Long> statusCountMap = orders.stream()
+                .collect(Collectors.groupingBy(RentalOrder::getStatus, Collectors.counting()));
+
+        result.add(new OrderStatisticsExportDTO("已支付订单数",
+                String.valueOf(statusCountMap.getOrDefault(1, 0L))));
+        result.add(new OrderStatisticsExportDTO("租赁中订单数",
+                String.valueOf(statusCountMap.getOrDefault(2, 0L))));
+        result.add(new OrderStatisticsExportDTO("已完成订单数",
+                String.valueOf(statusCountMap.getOrDefault(3, 0L))));
+        result.add(new OrderStatisticsExportDTO("已取消订单数",
+                String.valueOf(statusCountMap.getOrDefault(4, 0L))));
+
+        // 总金额
+        BigDecimal totalAmount = orders.stream()
+                .map(RentalOrder::getPrice)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        result.add(new OrderStatisticsExportDTO("总金额",
+                "¥" + String.format("%,.2f", totalAmount)));
+
+        // 完成率
+        long completedCount = statusCountMap.getOrDefault(3, 0L);
+        double completionRate = totalCount > 0 ? (completedCount * 100.0 / totalCount) : 0;
+        result.add(new OrderStatisticsExportDTO("完成率",
+                String.format("%.1f%%", completionRate)));
+
+        // 取消率
+        long cancelledCount = statusCountMap.getOrDefault(4, 0L);
+        double cancellationRate = totalCount > 0 ? (cancelledCount * 100.0 / totalCount) : 0;
+        result.add(new OrderStatisticsExportDTO("取消率",
+                String.format("%.1f%%", cancellationRate)));
+
+        // 平均评分
+        double avgScore = orders.stream()
+                .filter(o -> o.getScore() != null)
+                .mapToInt(RentalOrder::getScore)
+                .average()
+                .orElse(0.0);
+        result.add(new OrderStatisticsExportDTO("平均评分",
+                String.format("%.1f", avgScore)));
+
+        return result;
+    }
+
+    /**
+     * 创建单元格样式策略
+     */
+    private HorizontalCellStyleStrategy createCellStyleStrategy() {
+        // 头部样式
+        WriteCellStyle headWriteCellStyle = new WriteCellStyle();
+        headWriteCellStyle.setHorizontalAlignment(HorizontalAlignment.CENTER);
+
+        // 内容样式
+        WriteCellStyle contentWriteCellStyle = new WriteCellStyle();
+        contentWriteCellStyle.setHorizontalAlignment(HorizontalAlignment.LEFT);
+
+        return new HorizontalCellStyleStrategy(headWriteCellStyle, contentWriteCellStyle);
     }
 }

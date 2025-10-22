@@ -44,6 +44,8 @@
         <minio.version>8.5.2</minio.version>
         <pagehelper-spring-boot-starter.version>1.4.7</pagehelper-spring-boot-starter.version>
         <redisson.version>3.50.0</redisson.version>
+        <alipay-sdk.version>4.40.452.ALL</alipay-sdk.version>
+        <easyexcel.version>3.3.4</easyexcel.version>
     </properties>
 
     <dependencies>
@@ -215,6 +217,19 @@
             <groupId>io.minio</groupId>
             <artifactId>minio</artifactId>
             <version>${minio.version}</version>
+        </dependency>
+
+        <!--支付宝支付-->
+        <dependency>
+            <groupId>com.alipay.sdk</groupId>
+            <artifactId>alipay-sdk-java</artifactId>
+            <version>${alipay-sdk.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>easyexcel</artifactId>
+            <version>${easyexcel.version}</version>
         </dependency>
 
         <dependency>

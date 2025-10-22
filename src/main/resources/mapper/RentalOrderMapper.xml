@@ -20,7 +20,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,user_id,car_id,start_rental_time,end_rental_time,price,address
+        id,user_id,car_id,start_rental_time,end_rental_time,price,address,
         status,score,create_time,update_time,deleted
     </sql>
 
@@ -133,6 +133,12 @@
                 and ro.status = #{status}
             </if>
         </where>
+    </select>
+    <select id="selectAllOrders" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List"/>
+        from rental_order
+        where deleted = 0
     </select>
 
     <update id="deleteByPrimaryKey" parameterType="java.lang.Long">

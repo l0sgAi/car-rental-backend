@@ -51,4 +51,5 @@ public interface RentalOrderMapper {
 
     void cancelOrder(Long id);
 
+    List<RentalOrder> selectAllOrders();
 }
