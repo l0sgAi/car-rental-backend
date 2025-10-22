@@ -20,16 +20,16 @@ import com.losgai.sys.mq.sender.Sender;
 import com.losgai.sys.service.rental.AlipayService;
 import com.losgai.sys.service.rental.CalculationService;
 import com.losgai.sys.service.rental.OrderService;
+import com.losgai.sys.util.OrderUtils;
 import com.losgai.sys.vo.OrderVo;
 import com.losgai.sys.vo.ShowOrderVo;
-import jakarta.servlet.ServletOutputStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.HorizontalAlignment;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.context.annotation.Description;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,8 +60,6 @@ public class OrderServiceImpl implements OrderService {
 
     private final RedissonClient redissonClient;
 
-    private final RedisTemplate<String, Object> redisTemplate;
-
     private final Sender sender;
 
     public static final String LOCK_KEY = "lock:car:";
@@ -78,14 +76,15 @@ public class OrderServiceImpl implements OrderService {
         }
         orderVo.setCar(car);
         // 一个treeMap，用于存储车辆可租时间段集合，key为开始时间，value为结束时间
-        TreeMap<Date, Date> carBookingsAsTreeMap = calculationService.getCarBookingsAsTreeMap(carId);
+        TreeMap<Date, Date> carBookingsAsTreeMap = OrderUtils.
+                isBookingTimeAvailable(calculationService.getCarBookingsAsTreeMap(carId));
         orderVo.setRentTime(carBookingsAsTreeMap);
         return orderVo;
     }
 
     @Override
     @Description("生成订单,前端提交租车起始日期、车辆id")
-    public ResultCodeEnum create(BookingDto bookingDto) {
+    public Long create(BookingDto bookingDto) {
         RentalOrder order = new RentalOrder();
 
         // 基本信息
@@ -98,7 +97,7 @@ public class OrderServiceImpl implements OrderService {
         Date startRentalTime = bookingDto.getStartRentalTime();
         Date endRentalTime = bookingDto.getEndRentalTime();
         if (startRentalTime.after(endRentalTime)) {
-            return ResultCodeEnum.DATE_ERROR;
+            return -1L;
         }
 
         // 计算租赁天数
@@ -109,24 +108,24 @@ public class OrderServiceImpl implements OrderService {
         if (days < 1) { // 至少租一天
             days = 1;
         } else if (days > 61) { // 最多租61天(包括今天)
-            return ResultCodeEnum.DATE_ERROR;
+            return -1L;
         }
 
         // 获取车辆信息
         Car car = carMapper.selectByPrimaryKey(bookingDto.getCarId());
         // 不可租或删除的情况
         if (car == null || car.getStatus() == 1) {
-            return ResultCodeEnum.NO_SUCH_CAR;
+            return -1L;
         }
 
         // 检查日期冲突
         if (isCarCanRent(bookingDto.getCarId(), startRentalTime, endRentalTime)) {
-            return ResultCodeEnum.DATE_ERROR;
+            return -1L;
         }
 
         // 检查是否小于最小租赁天数
         if (days + 1 < car.getMinRentalDays()) {
-            return ResultCodeEnum.LESS_THAN_LIMIT;
+            return -1L;
         }
 
         // 赋值租赁起止日期
@@ -146,7 +145,7 @@ public class OrderServiceImpl implements OrderService {
         sender.sendOrder(RabbitMQAiMessageConfig.EXCHANGE_NAME,
                 RabbitMQAiMessageConfig.ROUTING_KEY_ORDER_DELAY,
                 order);
-        return ResultCodeEnum.SUCCESS;
+        return order.getId();
 
     }
 
@@ -278,11 +277,6 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public void updateOrderStatusAfterPayment(Long orderId, String tradeNo) {
-        rentalOrderMapper.updateStatus(orderId, 1);
-    }
-
-    @Override
     public void exportOrdersToExcel(OutputStream outputStream) throws IOException {
         // 1. 查询所有订单（未删除的）
         List<RentalOrder> orders = rentalOrderMapper.selectAllOrders();
@@ -329,7 +323,8 @@ public class OrderServiceImpl implements OrderService {
     @Description("检查车辆时间段是否可租")
     private boolean isCarCanRent(Long carId, Date startRentalTime, Date endRentalTime) {
         // 查看不可租日期
-        TreeMap<Date, Date> carBookingsAsTreeMap = calculationService.getCarBookingsAsTreeMap(carId);
+        TreeMap<Date, Date> carBookingsAsTreeMap = OrderUtils.
+                isBookingTimeAvailable(calculationService.getCarBookingsAsTreeMap(carId));
         // 检查日期冲突
         for (Date start : carBookingsAsTreeMap.keySet()) {
             Date end = carBookingsAsTreeMap.get(start);
@@ -465,7 +460,8 @@ public class OrderServiceImpl implements OrderService {
      */
     private boolean OrderDateRangeCheck(RentalOrder rentalOrder) {
         // 检查车辆日期冲突
-        TreeMap<Date, Date> carBookingsAsTreeMap = calculationService.getCarBookingsAsTreeMap(rentalOrder.getCarId());
+        TreeMap<Date, Date> carBookingsAsTreeMap = OrderUtils.
+                isBookingTimeAvailable(calculationService.getCarBookingsAsTreeMap(rentalOrder.getCarId()));
         // 如果当前订单的起止时间与缓存中的时间段有冲突，则返回错误码
         Date rentalStartTime = rentalOrder.getStartRentalTime();
         Date rentalEndTime = rentalOrder.getEndRentalTime();
@@ -491,5 +487,33 @@ public class OrderServiceImpl implements OrderService {
         }
 
         return true;
+    }
+
+    /**
+     * 定时任务:每天凌晨2点更新：
+     * 1.如果现在的日期离租赁开始日期<=1天，把状态为1=已付款的订单修改为2=租赁中
+     * 2.如果现在的日期离租赁结束日期<=1天，把状态为2=租赁中的订单修改为3=已完成
+     * */
+    @Transactional
+    @Scheduled(cron = "0 0 2 * * ?")
+    public void upDateOrderStatus(){
+        List<RentalOrder> orders = rentalOrderMapper.selectOrdersByStatus(1L,2L);
+        List<Long> toRenting = new ArrayList<>();
+        List<Long> toComplete = new ArrayList<>();
+
+        for (RentalOrder rentalOrder : orders) {
+            Date startRentalTime = rentalOrder.getStartRentalTime();
+            Date endRentalTime = rentalOrder.getEndRentalTime();
+            // 先处理需要完成的订单
+            if (OrderUtils.isFinished(endRentalTime)) {
+                toComplete.add(rentalOrder.getId());
+            }else if (OrderUtils.isRenting(startRentalTime)){
+                // 处理正在租赁的订单
+                toRenting.add(rentalOrder.getId());
+            }
+        }
+
+        rentalOrderMapper.updateStatusBatch(toRenting,2);
+        rentalOrderMapper.updateStatusBatch(toComplete,3);
     }
 }

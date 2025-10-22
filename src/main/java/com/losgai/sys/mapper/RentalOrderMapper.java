@@ -54,4 +54,8 @@ public interface RentalOrderMapper {
     List<RentalOrder> selectAllOrders();
 
     void updateStatus(Long orderId, Integer status);
+
+    List<RentalOrder> selectOrdersByStatus(Long ...ids);
+
+    void updateStatusBatch(List<Long> ids, Integer status);
 }

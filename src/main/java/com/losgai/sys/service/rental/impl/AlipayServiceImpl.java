@@ -2,7 +2,6 @@ package com.losgai.sys.service.rental.impl;
 
 import com.alipay.api.AlipayApiException;
 import com.alipay.api.AlipayClient;
-import com.alipay.api.AlipayConfig;
 import com.alipay.api.domain.AlipayTradePagePayModel;
 import com.alipay.api.domain.AlipayTradeQueryModel;
 import com.alipay.api.internal.util.AlipaySignature;
@@ -11,24 +10,32 @@ import com.alipay.api.request.AlipayTradeQueryRequest;
 import com.alipay.api.response.AlipayTradePagePayResponse;
 import com.alipay.api.response.AlipayTradeQueryResponse;
 import com.losgai.sys.config.AliPayConfig;
+import com.losgai.sys.entity.carRental.Car;
 import com.losgai.sys.entity.carRental.RentalOrder;
+import com.losgai.sys.enums.ResultCodeEnum;
 import com.losgai.sys.mapper.RentalOrderMapper;
 import com.losgai.sys.service.rental.AlipayService;
 import com.losgai.sys.service.rental.CalculationService;
-import com.losgai.sys.service.rental.OrderService;
+import com.losgai.sys.util.OrderUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
 
 import static com.losgai.sys.service.rental.impl.OrderServiceImpl.DATE_CACHE_PREFIX;
+import static com.losgai.sys.service.rental.impl.OrderServiceImpl.LOCK_KEY;
 
 @Service
 @RequiredArgsConstructor
@@ -39,19 +46,20 @@ public class AlipayServiceImpl implements AlipayService {
 
     private final AliPayConfig alipayConfig;
 
-    private final OrderService rentalOrderService;
-
     private final RentalOrderMapper rentalOrderMapper;
 
     private final RedisTemplate<String, Object> redisTemplate;
+
+    private final RedissonClient redissonClient;
 
     private final CalculationService calculationService;
 
     /**
      * 创建支付订单（页面跳转）
-     * @param orderId 订单ID
+     *
+     * @param orderId     订单ID
      * @param totalAmount 订单总金额
-     * @param subject 订单标题
+     * @param subject     订单标题
      * @return 支付表单HTML
      */
     @Override
@@ -94,6 +102,7 @@ public class AlipayServiceImpl implements AlipayService {
 
     /**
      * 查询支付订单状态
+     *
      * @param orderId 订单ID
      * @return 支付状态 (WAIT_BUYER_PAY-等待付款, TRADE_SUCCESS-支付成功, TRADE_FINISHED-交易完成, TRADE_CLOSED-交易关闭)
      */
@@ -182,19 +191,52 @@ public class AlipayServiceImpl implements AlipayService {
                     // 更新订单状态，清除预定列表缓存
                     Long orderId = Long.parseLong(outTradeNo);
                     RentalOrder rentalOrder = rentalOrderMapper.selectByPrimaryKey(orderId);
-                    if(OrderDateRangeCheck(rentalOrder)){
-                        // 更新写入前删除被占时间缓存
-                        redisTemplate.delete(DATE_CACHE_PREFIX + rentalOrder.getCarId());
-                        // 更新订单状态
-                        rentalOrderService.updateOrderStatusAfterPayment(orderId, tradeNo);
-                        log.info("订单 {} 支付成功，已更新订单状态", orderId);
-                    }else {
-                        log.error("订单 {} 支付成功，但订单日期有冲突，已取消订单", orderId);
-                        rentalOrderMapper.cancelOrder(orderId);
+                    if (OrderDateRangeCheck(rentalOrder)) {
+                        String lockKey = LOCK_KEY + rentalOrder.getCarId();
+                        RLock carLock = redissonClient.getLock(lockKey);
+                        boolean isLocked = false;
+                        try {
+                            // 1. 尝试获取锁
+                            isLocked = carLock.tryLock(10, 60, TimeUnit.SECONDS);
+
+                            if (isLocked) {
+                                // 2. 获取锁成功，执行核心业务逻辑
+                                log.info("线程 {} 获取车辆 {} 的锁成功",
+                                        Thread.currentThread().threadId(),
+                                        rentalOrder.getCarId());
+                                // 更新写入前删除被占时间缓存
+                                redisTemplate.delete(DATE_CACHE_PREFIX + rentalOrder.getCarId());
+                                // 判断车辆是否正在被租
+                                boolean isRenting = OrderUtils.isRenting(rentalOrder.getStartRentalTime());
+                                // 更新订单状态
+                                rentalOrderMapper.updateStatus(orderId, isRenting ? 2 : 1);
+                                log.info("订单 {} 支付成功，已更新订单状态", orderId);
+                            } else {
+                                // 3. 获取锁失败，说明有其他请求正在处理此车辆的订单
+                                log.warn("订单 {} 支付成功，但订单下单时与其它用户冲突，已取消订单",
+                                        orderId);
+                                rentalOrderMapper.updateStatus(orderId, 5);
+                                log.warn("线程 {} 获取车辆 {} 的锁失败，系统繁忙",
+                                        Thread.currentThread().threadId(),
+                                        rentalOrder.getCarId());
+                                // TODO: 退款
+                            }
+                        } catch (InterruptedException e) {
+                            log.error("获取分布式锁时被中断", e);
+                            Thread.currentThread().interrupt();
+                        } finally {
+                            // 4. 无论如何，最后都要释放锁
+                            if (isLocked && carLock.isHeldByCurrentThread()) {
+                                carLock.unlock();
+                                log.info("线程 {} 释放车辆 {} 的锁", Thread.currentThread().threadId(), rentalOrder.getCarId());
+                            }
+                        }
+                    } else {
+                        log.warn("订单 {} 支付成功，但订单日期有冲突，已取消订单", orderId);
+                        rentalOrderMapper.updateStatus(orderId, 5);
                         // TODO: 退款
                     }
                 }
-
                 // 返回success，告知支付宝服务器收到通知
                 return "success";
             } else {
@@ -228,12 +270,13 @@ public class AlipayServiceImpl implements AlipayService {
 
     /**
      * 检查车辆时间段是否可租
-     * @param rentalOrder
+     *
      * @return true/false 是否合法
      */
     private boolean OrderDateRangeCheck(RentalOrder rentalOrder) {
         // 检查车辆日期冲突
-        TreeMap<Date, Date> carBookingsAsTreeMap = calculationService.getCarBookingsAsTreeMap(rentalOrder.getCarId());
+        TreeMap<Date, Date> carBookingsAsTreeMap = OrderUtils.
+                isBookingTimeAvailable(calculationService.getCarBookingsAsTreeMap(rentalOrder.getCarId()));
         // 如果当前订单的起止时间与缓存中的时间段有冲突，则返回错误码
         Date rentalStartTime = rentalOrder.getStartRentalTime();
         Date rentalEndTime = rentalOrder.getEndRentalTime();

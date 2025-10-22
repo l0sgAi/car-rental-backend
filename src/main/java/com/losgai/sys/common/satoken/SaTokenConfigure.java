@@ -33,7 +33,11 @@ public class SaTokenConfigure implements WebMvcConfigurer {
                 .setAuth(obj -> {
                     log.info("---------- 进入Sa-Token全局认证 -----------");
                     // 登录认证 -- 拦截所有路由，并排除/auth 用于开放登录与注册
-                    SaRouter.match("/**", "/sys/user/auth/**", StpUtil::checkLogin);
+                    SaRouter.match("/**")
+                            .notMatch("/sys/user/auth/**")
+                            // 放行支付宝支付结果回调
+                            .notMatch("/rental/payment/notify")
+                            .check(r -> StpUtil.checkLogin());
                     
                     // 更多拦截处理方式，请参考“路由拦截式鉴权”章节 */
                 })

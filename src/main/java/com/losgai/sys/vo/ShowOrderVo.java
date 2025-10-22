@@ -1,6 +1,5 @@
 package com.losgai.sys.vo;
 
-import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 import java.math.BigDecimal;

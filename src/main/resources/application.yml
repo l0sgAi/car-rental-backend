@@ -75,9 +75,11 @@ alipay:
   # 私钥
   signType: RSA2
   # 回调的公网地址
+  # TODO: 换成后端公网部署地址，否则无效
   notifyUrl: http://p383f6cc.natappfree.cc/rental/payment/notify
   # 页面跳转同步通知页面路径
-  returnUrl: http://p383f6cc.natappfree.cc/rental/payment/return
+  # TODO: 换成前端公网部署地址，否则无效
+  returnUrl: http://localhost:5173/my-orders
   # 字符编码格式
   charset: utf-8
   # 返回格式

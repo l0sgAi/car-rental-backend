@@ -24,6 +24,12 @@
         status,score,create_time,update_time,deleted
     </sql>
 
+    <!-- 定义映射 -->
+    <resultMap id="BookingSlotMap" type="com.losgai.sys.dto.BookingSlot">
+        <result property="startRentalTime" column="start_rental_time" jdbcType="TIMESTAMP"/>
+        <result property="endRentalTime" column="end_rental_time" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
     <select id="selectByPrimaryKey" parameterType="java.lang.Long" resultMap="BaseResultMap">
         select
         <include refid="Base_Column_List" />
@@ -31,10 +37,10 @@
         where  id = #{id} 
     </select>
 
-    <select id="findFutureBookingsByCarId" resultType="com.losgai.sys.dto.BookingSlot">
+    <select id="findFutureBookingsByCarId" resultMap="BookingSlotMap">
         SELECT
-        start_rental_time as startRentalTime,
-        end_rental_time as endRentalTime
+        start_rental_time,
+        end_rental_time
         FROM
         rental_order
         WHERE
@@ -139,6 +145,17 @@
         <include refid="Base_Column_List"/>
         from rental_order
         where deleted = 0
+    </select>
+    
+    <select id="selectOrdersByStatus" resultType="com.losgai.sys.entity.carRental.RentalOrder">
+        select 
+        <include refid="Base_Column_List"/>
+        from rental_order
+        where deleted = 0
+        and status in
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
     </select>
 
     <update id="deleteByPrimaryKey" parameterType="java.lang.Long">
@@ -254,6 +271,16 @@
         set status = #{status}
         where deleted = 0
         and id = #{orderId}
+    </update>
+
+    <update id="updateStatusBatch">
+        update rental_order
+        set status = #{status}
+        where deleted = 0
+        and id in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">
+            #{id}
+        </foreach>
     </update>
 
 </mapper>

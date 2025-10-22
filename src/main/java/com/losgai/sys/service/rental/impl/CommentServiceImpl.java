@@ -287,7 +287,7 @@ public class CommentServiceImpl implements CommentService {
         return likeCountMap;
     }
 
-    @Scheduled(fixedRate = 45234) // 每45秒执行一次点赞数同步
+    @Scheduled(fixedRate = 345234) // 每345秒执行一次点赞数同步
     public void syncLikeToDB() {
         // 获取待同步的评论Ids
         Set<Long> commentIds = Objects.requireNonNull(redisTemplate.opsForSet()

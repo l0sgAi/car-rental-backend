@@ -1,8 +1,9 @@
 package com.losgai.sys.service.rental;
 
-import java.util.Date;
-import java.util.TreeMap;
+import com.losgai.sys.dto.BookingSlot;
+
+import java.util.List;
 
 public interface CalculationService {
-    TreeMap<Date, Date> getCarBookingsAsTreeMap(Long carId);
+    List<BookingSlot> getCarBookingsAsTreeMap(Long carId);
 }

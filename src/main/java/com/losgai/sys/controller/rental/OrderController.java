@@ -55,16 +55,16 @@ public class OrderController {
 
     @PostMapping("/create")
     @Tag(name = "生成订单",description = "用户选择车辆和租车时间段后，生成订单")
-    public Result<String> add(@RequestBody @Valid BookingDto bookingDto) {
-        ResultCodeEnum codeEnum = orderService.create(bookingDto);
-        if (!Objects.equals(codeEnum.getCode(), ResultCodeEnum.SUCCESS.getCode())) {
-            return Result.info(codeEnum.getCode(),codeEnum.getMessage());
+    public Result<Long> add(@RequestBody @Valid BookingDto bookingDto) {
+        Long orderId = orderService.create(bookingDto);
+        if(orderId<=0){
+            return Result.error("订单生成失败");
         }
-        return Result.success("下单成功");
+        return Result.success(orderId);
     }
 
     @PutMapping("/pay")
-    @Tag(name = "支付订单",description = "用户支付订单，更新订单状态")
+    @Tag(name = "支付订单",description = "用户支付订单，更新订单状态，返回支付表单页面字符串")
     public Result<String> pay(@RequestParam Long orderId) {
         String payForm = orderService.pay(orderId);
         if (!Objects.equals(payForm, ResultCodeEnum.SUCCESS.getMessage())) {

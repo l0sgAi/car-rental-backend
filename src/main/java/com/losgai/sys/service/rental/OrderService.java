@@ -5,7 +5,6 @@ import com.losgai.sys.dto.RentalOrderDto;
 import com.losgai.sys.enums.ResultCodeEnum;
 import com.losgai.sys.vo.OrderVo;
 import com.losgai.sys.vo.ShowOrderVo;
-import jakarta.servlet.ServletOutputStream;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -15,7 +14,7 @@ import java.util.List;
 public interface OrderService {
     OrderVo getStartOrderVo(Long carId);
 
-    ResultCodeEnum create(BookingDto bookingDto);
+    Long create(BookingDto bookingDto);
 
     void exportOrdersToExcel(OutputStream outputStream) throws IOException;
 
@@ -27,5 +26,4 @@ public interface OrderService {
 
     List<ShowOrderVo> userQuery(String keyWord, Date start, Date end, Integer status);
 
-    void updateOrderStatusAfterPayment(Long orderId, String tradeNo);
 }

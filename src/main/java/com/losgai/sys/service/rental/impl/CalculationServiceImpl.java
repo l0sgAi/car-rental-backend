@@ -8,10 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
-import java.util.Date;
 import java.util.List;
-import java.util.TreeMap;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -25,7 +22,7 @@ public class CalculationServiceImpl implements CalculationService {
      * 数据以 TreeMap 形式返回，Key为开始日期，Value为结束日期。
      *
      * @param carId 车辆ID
-     * @return 一个表示预订日历的 TreeMap
+     * @return 一个表示预订日历的 List<BookingSlot>
      *
      * 缓存清除的条件：
      * 1.车辆更新/删除
@@ -34,17 +31,7 @@ public class CalculationServiceImpl implements CalculationService {
      */
     @Override
     @Cacheable(value = "carBookingsDateCache", key = "#carId")
-    public TreeMap<Date, Date> getCarBookingsAsTreeMap(Long carId) {
-        // 1. 从数据库查询出所有相关的预订记录
-        List<BookingSlot> bookingSlots = rentalOrderMapper.findFutureBookingsByCarId(carId);
-
-        // 2. 将 List<BookingSlot> 转换为 TreeMap
-        return bookingSlots.stream()
-                .collect(Collectors.toMap(
-                        BookingSlot::getStartRentalTime, // Key
-                        BookingSlot::getEndRentalTime,   // Value
-                        (v1, v2) -> v2, // 如果出现重复的key，保留后者
-                        TreeMap::new    // 指定Map的实现为TreeMap
-                ));
+    public List<BookingSlot> getCarBookingsAsTreeMap(Long carId) {
+        return rentalOrderMapper.findFutureBookingsByCarId(carId);
     }
 }
