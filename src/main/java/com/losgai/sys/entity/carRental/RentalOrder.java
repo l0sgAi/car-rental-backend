@@ -33,6 +33,10 @@ public class RentalOrder implements Serializable {
     @NotNull(message="[对应车辆ID]不能为空")
     private Long carId;
     /**
+    * 支付宝订单编号
+    */
+    private String tradeNo;
+    /**
     * 车辆起租日期
     */
     @NotNull(message="[车辆起租日期]不能为空")

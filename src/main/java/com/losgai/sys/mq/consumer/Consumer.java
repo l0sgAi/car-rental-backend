@@ -1,6 +1,7 @@
 package com.losgai.sys.mq.consumer;
 
 import com.losgai.sys.config.RabbitMQAiMessageConfig;
+import com.losgai.sys.dto.RefundDto;
 import com.losgai.sys.entity.ai.AiConfig;
 import com.losgai.sys.entity.ai.AiMessagePair;
 import com.losgai.sys.entity.carRental.Car;
@@ -12,6 +13,7 @@ import com.losgai.sys.mapper.CommentMapper;
 import com.losgai.sys.mapper.RentalOrderMapper;
 import com.losgai.sys.service.ai.AiMessagePairService;
 import com.losgai.sys.service.rental.CarService;
+import com.losgai.sys.service.rental.RefundService;
 import com.losgai.sys.util.ModelBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +33,8 @@ public class Consumer {
     private final AiMessagePairService aiMessagePairEsService;
 
     private final CarService carService;
+
+    private final RefundService refundService;
 
     private final RentalOrderMapper rentalOrderMapper;
 
@@ -186,6 +190,15 @@ public class Consumer {
         log.info("[MQ]订单超时-消费者收到消息：{}", message);
         // 更新订单为已经取消
         rentalOrderMapper.cancelOrder(message.getId());
+    }
+
+    // 监听处理订单退款
+    @RabbitListener(queues = RabbitMQAiMessageConfig.QUEUE_NAME_REFUND)
+    @Description("处理订单退款")
+    public void receiveOrderRefund(RefundDto message) {
+        log.info("[MQ]订单退款-消费者收到消息：{}", message);
+        // 执行退款
+        refundService.refund(message);
     }
 
 }

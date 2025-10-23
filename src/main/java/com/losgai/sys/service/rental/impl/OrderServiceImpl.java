@@ -10,7 +10,7 @@ import com.losgai.sys.config.RabbitMQAiMessageConfig;
 import com.losgai.sys.dto.BookingDto;
 import com.losgai.sys.dto.OrderDetailExportDTO;
 import com.losgai.sys.dto.OrderStatisticsExportDTO;
-import com.losgai.sys.dto.RentalOrderDto;
+import com.losgai.sys.dto.RefundDto;
 import com.losgai.sys.entity.carRental.Car;
 import com.losgai.sys.entity.carRental.RentalOrder;
 import com.losgai.sys.enums.ResultCodeEnum;
@@ -231,12 +231,17 @@ public class OrderServiceImpl implements OrderService {
         return ResultCodeEnum.SYSTEM_ERROR.getMessage();
     }
 
-    @Description("更新订单，订单状态为1=已支付或2=租赁中，需要加分布式锁")
+    @Description("取消订单，需要加分布式锁")
     @Transactional
-    public ResultCodeEnum update(RentalOrderDto rentalOrderDto) {
-        RentalOrder rentalOrder = rentalOrderMapper.selectByPrimaryKey(rentalOrderDto.getOrderId());
+    public ResultCodeEnum cancel(Long orderId) {
+        RentalOrder rentalOrder = rentalOrderMapper.selectByPrimaryKey(orderId);
+
+        if(rentalOrder.getStatus()!=0 && rentalOrder.getStatus()!=1){
+            return ResultCodeEnum.ORDER_STATUS_ERROR;
+        }
+
         Long carId = rentalOrder.getCarId();
-        // 分布式锁解决超卖问题
+        // 分布式锁解决数据一致性问题
         String lockKey = LOCK_KEY + carId;
         RLock carLock = redissonClient.getLock(lockKey);
 
@@ -249,8 +254,21 @@ public class OrderServiceImpl implements OrderService {
             if (isLocked) {
                 // 2. 获取锁成功，执行核心业务逻辑
                 log.info("线程 {} 获取车辆 {} 的锁成功", Thread.currentThread().threadId(), carId);
-                // TODO: 添加更新逻辑
-
+                // 已支付的情况，需要退款
+                if(rentalOrder.getStatus()==1){
+                    RefundDto refundDto = new RefundDto();
+                    refundDto.setOrderId(rentalOrder.getId());
+                    refundDto.setRefundReason("用户取消订单");
+                    // 发送退款消息
+                    sender.sendOrderRefund(
+                            RabbitMQAiMessageConfig.EXCHANGE_NAME,
+                            RabbitMQAiMessageConfig.ROUTING_KEY_REFUND,
+                            refundDto
+                            );
+                }else {
+                    // 未支付的情况，不需要退款
+                    rentalOrderMapper.updateStatus(orderId, 4);
+                }
             } else {
                 // 3. 获取锁失败，说明有其他请求正在处理此车辆的订单
                 log.warn("线程 {} 获取车辆 {} 的锁失败，系统繁忙", Thread.currentThread().threadId(), carId);
@@ -380,6 +398,8 @@ public class OrderServiceImpl implements OrderService {
             case 2 -> "租赁中";
             case 3 -> "已完成";
             case 4 -> "已取消";
+            case 5 -> "待退款";
+            case 6 -> "已退款";
             default -> "未知";
         };
     }

@@ -10,10 +10,11 @@ import com.alipay.api.request.AlipayTradeQueryRequest;
 import com.alipay.api.response.AlipayTradePagePayResponse;
 import com.alipay.api.response.AlipayTradeQueryResponse;
 import com.losgai.sys.config.AliPayConfig;
-import com.losgai.sys.entity.carRental.Car;
+import com.losgai.sys.config.RabbitMQAiMessageConfig;
+import com.losgai.sys.dto.RefundDto;
 import com.losgai.sys.entity.carRental.RentalOrder;
-import com.losgai.sys.enums.ResultCodeEnum;
 import com.losgai.sys.mapper.RentalOrderMapper;
+import com.losgai.sys.mq.sender.Sender;
 import com.losgai.sys.service.rental.AlipayService;
 import com.losgai.sys.service.rental.CalculationService;
 import com.losgai.sys.util.OrderUtils;
@@ -26,8 +27,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -53,6 +52,8 @@ public class AlipayServiceImpl implements AlipayService {
     private final RedissonClient redissonClient;
 
     private final CalculationService calculationService;
+
+    private final Sender sender;
 
     /**
      * 创建支付订单（页面跳转）
@@ -185,11 +186,14 @@ public class AlipayServiceImpl implements AlipayService {
 
                 log.info("支付宝异步回调，订单号: {}, 支付宝交易号: {}, 交易状态: {}, 金额: {}",
                         outTradeNo, tradeNo, tradeStatus, totalAmount);
+                Long orderId = Long.parseLong(outTradeNo);
+                // 更新trade_no字段
+                rentalOrderMapper.updateTradeNo(orderId, tradeNo);
 
                 // 判断交易状态
                 if ("TRADE_SUCCESS".equals(tradeStatus) || "TRADE_FINISHED".equals(tradeStatus)) {
                     // 更新订单状态，清除预定列表缓存
-                    Long orderId = Long.parseLong(outTradeNo);
+
                     RentalOrder rentalOrder = rentalOrderMapper.selectByPrimaryKey(orderId);
                     if (OrderDateRangeCheck(rentalOrder)) {
                         String lockKey = LOCK_KEY + rentalOrder.getCarId();
@@ -219,7 +223,14 @@ public class AlipayServiceImpl implements AlipayService {
                                 log.warn("线程 {} 获取车辆 {} 的锁失败，系统繁忙",
                                         Thread.currentThread().threadId(),
                                         rentalOrder.getCarId());
-                                // TODO: 退款
+                                RefundDto refundDto = new RefundDto();
+                                refundDto.setOrderId(orderId);
+                                refundDto.setRefundReason("订单支付时与其它用户冲突");
+                                // 发送退款消息
+                                sender.sendOrderRefund(
+                                        RabbitMQAiMessageConfig.EXCHANGE_NAME,
+                                        RabbitMQAiMessageConfig.ROUTING_KEY_REFUND,
+                                        refundDto);
                             }
                         } catch (InterruptedException e) {
                             log.error("获取分布式锁时被中断", e);
@@ -232,9 +243,16 @@ public class AlipayServiceImpl implements AlipayService {
                             }
                         }
                     } else {
-                        log.warn("订单 {} 支付成功，但订单日期有冲突，已取消订单", orderId);
+                        log.warn("订单 {} 返回状态错误，已取消订单", orderId);
                         rentalOrderMapper.updateStatus(orderId, 5);
-                        // TODO: 退款
+                        RefundDto refundDto = new RefundDto();
+                        refundDto.setOrderId(orderId);
+                        refundDto.setRefundReason("订单日期有冲突");
+                        // 发送退款消息
+                        sender.sendOrderRefund(
+                                RabbitMQAiMessageConfig.EXCHANGE_NAME,
+                                RabbitMQAiMessageConfig.ROUTING_KEY_REFUND,
+                                refundDto);
                     }
                 }
                 // 返回success，告知支付宝服务器收到通知

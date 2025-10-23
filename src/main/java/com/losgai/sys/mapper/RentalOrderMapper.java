@@ -58,4 +58,6 @@ public interface RentalOrderMapper {
     List<RentalOrder> selectOrdersByStatus(Long ...ids);
 
     void updateStatusBatch(List<Long> ids, Integer status);
+
+    void updateTradeNo(Long orderId, String tradeNo);
 }

@@ -1,5 +1,6 @@
 package com.losgai.sys.mq.sender;
 
+import com.losgai.sys.dto.RefundDto;
 import com.losgai.sys.entity.ai.AiMessagePair;
 import com.losgai.sys.entity.carRental.Car;
 import com.losgai.sys.entity.carRental.Comment;
@@ -41,7 +42,13 @@ public class Sender {
         rabbitTemplate.convertAndSend(exchange, routingKey, comment);
     }
 
+    // 发送订单延迟消费信息
     public void sendOrder(String exchange, String routingKey, RentalOrder order) {
         rabbitTemplate.convertAndSend(exchange, routingKey, order);
+    }
+
+    // 发送订单退款信息
+    public void sendOrderRefund(String exchange, String routingKey, RefundDto refundDto) {
+        rabbitTemplate.convertAndSend(exchange, routingKey, refundDto);
     }
 }

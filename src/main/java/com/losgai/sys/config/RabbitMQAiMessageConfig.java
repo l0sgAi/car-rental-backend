@@ -1,12 +1,14 @@
 package com.losgai.sys.config;
 
 import org.springframework.amqp.core.*;
-import org.springframework.amqp.support.converter.SimpleMessageConverter;
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @Configuration
@@ -47,6 +49,10 @@ public class RabbitMQAiMessageConfig {
 
     // 延迟时间，30分钟 = 30 * 60 * 1000 = 1,800,000毫秒
     private static final long DELAY_TIME = 30 * 60 * 1000;
+
+    // 配置退款队列
+    public static final String QUEUE_NAME_REFUND = "refund.queue";
+    public static final String ROUTING_KEY_REFUND = "refund";
 
     /// 声明交换机
     @Bean
@@ -104,6 +110,11 @@ public class RabbitMQAiMessageConfig {
         return QueueBuilder.durable(ORDER_PROCESS_QUEUE).build();
     }
 
+    @Bean
+    public Queue refundQueue() {
+        return QueueBuilder.durable(QUEUE_NAME_REFUND).build();
+    }
+
     /// 绑定
 
     // 第一个绑定：sys.message -> sys.message.queue
@@ -138,7 +149,7 @@ public class RabbitMQAiMessageConfig {
         return BindingBuilder.bind(commentCensorQueue).to(exchange).with(ROUTING_KEY_COMMENT_CENSOR);
     }
 
-    // 4. 延迟队列绑定
+    // 延迟队列绑定
     @Bean
     public Binding delayBinding() {
         return BindingBuilder
@@ -147,7 +158,7 @@ public class RabbitMQAiMessageConfig {
                 .with(ROUTING_KEY_ORDER_DELAY);
     }
 
-    // 5. 处理队列绑定
+    // 处理队列绑定
     @Bean
     public Binding processBinding() {
         return BindingBuilder
@@ -156,12 +167,32 @@ public class RabbitMQAiMessageConfig {
                 .with(ROUTING_KEY_ORDER_PROCESS);
     }
 
-    // 反序列化配置
     @Bean
-    public SimpleMessageConverter converter() {
-        SimpleMessageConverter converter = new SimpleMessageConverter();
-        converter.setAllowedListPatterns(List.of("com.losgai.sys.entity.*", "java.util.*"));
-        return converter;
+    public Binding refundBinding() {
+        return BindingBuilder
+                .bind(refundQueue())
+                .to(exchange())
+                .with(ROUTING_KEY_REFUND);
+    }
+
+    // 反序列化配置
+//    @Bean
+//    public SimpleMessageConverter converter() {
+//        SimpleMessageConverter converter = new SimpleMessageConverter();
+//        converter.setAllowedListPatterns(List.of("com.losgai.sys.entity.*", "java.util.*"));
+//        return converter;
+//    }
+
+    @Bean
+    public MessageConverter messageConverter() {
+        return new Jackson2JsonMessageConverter();
+    }
+
+    @Bean
+    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
+        RabbitTemplate template = new RabbitTemplate(connectionFactory);
+        template.setMessageConverter(messageConverter());
+        return template;
     }
 
 }

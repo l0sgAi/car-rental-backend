@@ -5,22 +5,23 @@
 <mapper namespace="com.losgai.sys.mapper.RentalOrderMapper">
 
     <resultMap id="BaseResultMap" type="com.losgai.sys.entity.carRental.RentalOrder">
-            <id property="id" column="id" />
-            <result property="userId" column="user_id" />
-            <result property="carId" column="car_id" />
-            <result property="startRentalTime" column="start_rental_time" />
-            <result property="endRentalTime" column="end_rental_time" />
-            <result property="price" column="price" />
-            <result property="address" column="address" />
-            <result property="status" column="status" />
-            <result property="score" column="score" />
-            <result property="createTime" column="create_time" />
-            <result property="updateTime" column="update_time" />
-            <result property="deleted" column="deleted" />
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="carId" column="car_id"/>
+        <result property="tradeNo" column="trade_no"/>
+        <result property="startRentalTime" column="start_rental_time"/>
+        <result property="endRentalTime" column="end_rental_time"/>
+        <result property="price" column="price"/>
+        <result property="address" column="address"/>
+        <result property="status" column="status"/>
+        <result property="score" column="score"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="deleted" column="deleted"/>
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,user_id,car_id,start_rental_time,end_rental_time,price,address,
+        id,user_id,car_id,trade_no,start_rental_time,end_rental_time,price,address,
         status,score,create_time,update_time,deleted
     </sql>
 
@@ -32,28 +33,24 @@
 
     <select id="selectByPrimaryKey" parameterType="java.lang.Long" resultMap="BaseResultMap">
         select
-        <include refid="Base_Column_List" />
+        <include refid="Base_Column_List"/>
         from rental_order
-        where  id = #{id} 
+        where id = #{id}
     </select>
 
     <select id="findFutureBookingsByCarId" resultMap="BookingSlotMap">
-        SELECT
-        start_rental_time,
-        end_rental_time
-        FROM
-        rental_order
-        WHERE
-        car_id = #{carId}
-        -- 1. 过滤掉逻辑删除的订单
-        AND deleted = 0
-        -- 2. 只查询“已支付”或“租赁中”的订单
-        AND status IN (1, 2)
-        -- 3. 关键逻辑：筛选出与【今天, 今天+60天】这个时间窗口有交集的订单
-        AND start_rental_time &lt;= DATE_ADD(CURDATE(), INTERVAL 60 DAY)
-        AND end_rental_time &gt;= CURDATE()
-        ORDER BY
-        start_rental_time
+        SELECT start_rental_time,
+               end_rental_time
+        FROM rental_order
+        WHERE car_id = #{carId}
+          -- 1. 过滤掉逻辑删除的订单
+          AND deleted = 0
+          -- 2. 只查询“已支付”或“租赁中”的订单
+          AND status IN (1, 2)
+          -- 3. 关键逻辑：筛选出与【今天, 今天+60天】这个时间窗口有交集的订单
+          AND start_rental_time &lt;= DATE_ADD(CURDATE(), INTERVAL 60 DAY)
+          AND end_rental_time &gt;= CURDATE()
+        ORDER BY start_rental_time
     </select>
 
     <select id="query" resultType="com.losgai.sys.vo.ShowOrderVo">
@@ -96,6 +93,7 @@
                 and ro.status = #{status}
             </if>
         </where>
+        order by ro.update_time desc
     </select>
 
     <select id="userQuery" resultType="com.losgai.sys.vo.ShowOrderVo">
@@ -139,6 +137,7 @@
                 and ro.status = #{status}
             </if>
         </where>
+        order by ro.update_time desc
     </select>
     <select id="selectAllOrders" resultMap="BaseResultMap">
         select
@@ -146,9 +145,9 @@
         from rental_order
         where deleted = 0
     </select>
-    
+
     <select id="selectOrdersByStatus" resultType="com.losgai.sys.entity.carRental.RentalOrder">
-        select 
+        select
         <include refid="Base_Column_List"/>
         from rental_order
         where deleted = 0
@@ -164,113 +163,120 @@
         where id = #{id}
     </update>
 
-    <insert id="insert" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.RentalOrder" useGeneratedKeys="true">
+    <insert id="insert" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.RentalOrder"
+            useGeneratedKeys="true">
         insert into rental_order
-        ( id,user_id,car_id,start_rental_time,end_rental_time,price,address,
-        status,score,create_time,update_time,deleted)
-        values (#{id},#{userId},#{carId},#{startRentalTime},#{endRentalTime},#{price},#{address},
-        #{status},#{score},#{createTime},#{updateTime},#{deleted})
+        (id, user_id, car_id, rental_order.trade_no, start_rental_time, end_rental_time, price, address,
+         status, score, create_time, update_time, deleted)
+        values (#{id}, #{userId}, #{carId}, #{tradeNo}, #{startRentalTime}, #{endRentalTime}, #{price}, #{address},
+                #{status}, #{score}, #{createTime}, #{updateTime}, #{deleted})
     </insert>
-    <insert id="insertSelective" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.RentalOrder" useGeneratedKeys="true">
+    <insert id="insertSelective" keyColumn="id" keyProperty="id"
+            parameterType="com.losgai.sys.entity.carRental.RentalOrder" useGeneratedKeys="true">
         insert into rental_order
         <trim prefix="(" suffix=")" suffixOverrides=",">
-                <if test="id != null">id,</if>
-                <if test="userId != null">user_id,</if>
-                <if test="carId != null">car_id,</if>
-                <if test="startRentalTime != null">start_rental_time,</if>
-                <if test="endRentalTime != null">end_rental_time,</if>
-                <if test="price != null">price,</if>
+            <if test="id != null">id,</if>
+            <if test="userId != null">user_id,</if>
+            <if test="carId != null">car_id,</if>
+            <if test="tradeNo != null">trade_no,</if>
+            <if test="startRentalTime != null">start_rental_time,</if>
+            <if test="endRentalTime != null">end_rental_time,</if>
+            <if test="price != null">price,</if>
             <if test="address != null">address,</if>
-                <if test="status != null">status,</if>
-                <if test="score != null">score,</if>
-                <if test="createTime != null">create_time,</if>
-                <if test="updateTime != null">update_time,</if>
-                <if test="deleted != null">deleted,</if>
+            <if test="status != null">status,</if>
+            <if test="score != null">score,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="deleted != null">deleted,</if>
         </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
-                <if test="id != null">#{id},</if>
-                <if test="userId != null">#{userId},</if>
-                <if test="carId != null">#{carId},</if>
-                <if test="startRentalTime != null">#{startRentalTime},</if>
-                <if test="endRentalTime != null">#{endRentalTime},</if>
-                <if test="price != null">#{price},</if>
+            <if test="id != null">#{id},</if>
+            <if test="userId != null">#{userId},</if>
+            <if test="carId != null">#{carId},</if>
+            <if test="tradeNo != null">#{tradeNo},</if>
+            <if test="startRentalTime != null">#{startRentalTime},</if>
+            <if test="endRentalTime != null">#{endRentalTime},</if>
+            <if test="price != null">#{price},</if>
             <if test="address != null">#{address},</if>
-                <if test="status != null">#{status},</if>
-                <if test="score != null">#{score},</if>
-                <if test="createTime != null">#{createTime},</if>
-                <if test="updateTime != null">#{updateTime},</if>
-                <if test="deleted != null">#{deleted},</if>
+            <if test="status != null">#{status},</if>
+            <if test="score != null">#{score},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="deleted != null">#{deleted},</if>
         </trim>
     </insert>
     <update id="updateByPrimaryKeySelective" parameterType="com.losgai.sys.entity.carRental.RentalOrder">
         update rental_order
         <set>
-                <if test="userId != null">
-                    user_id = #{userId},
-                </if>
-                <if test="carId != null">
-                    car_id = #{carId},
-                </if>
-                <if test="startRentalTime != null">
-                    start_rental_time = #{startRentalTime},
-                </if>
-                <if test="endRentalTime != null">
-                    end_rental_time = #{endRentalTime},
-                </if>
-                <if test="price != null">
-                    price = #{price},
-                </if>
+            <if test="userId != null">
+                user_id = #{userId},
+            </if>
+            <if test="carId != null">
+                car_id = #{carId},
+            </if>
+            <if test="tradeNo != null">
+                trade_no = #{tradeNo},
+            </if>
+            <if test="startRentalTime != null">
+                start_rental_time = #{startRentalTime},
+            </if>
+            <if test="endRentalTime != null">
+                end_rental_time = #{endRentalTime},
+            </if>
+            <if test="price != null">
+                price = #{price},
+            </if>
             <if test="address != null">
-                    address = #{address},
-                </if>
-                <if test="status != null">
-                    status = #{status},
-                </if>
-                <if test="score != null">
-                    score = #{score},
-                </if>
-                <if test="createTime != null">
-                    create_time = #{createTime},
-                </if>
-                <if test="updateTime != null">
-                    update_time = #{updateTime},
-                </if>
-                <if test="deleted != null">
-                    deleted = #{deleted},
-                </if>
+                address = #{address},
+            </if>
+            <if test="status != null">
+                status = #{status},
+            </if>
+            <if test="score != null">
+                score = #{score},
+            </if>
+            <if test="createTime != null">
+                create_time = #{createTime},
+            </if>
+            <if test="updateTime != null">
+                update_time = #{updateTime},
+            </if>
+            <if test="deleted != null">
+                deleted = #{deleted},
+            </if>
         </set>
-        where   id = #{id} 
+        where id = #{id}
     </update>
     <update id="updateByPrimaryKey" parameterType="com.losgai.sys.entity.carRental.RentalOrder">
         update rental_order
-        set 
-            user_id =  #{userId},
-            car_id =  #{carId},
-            start_rental_time =  #{startRentalTime},
-            end_rental_time =  #{endRentalTime},
-            price =  #{price},
-            address =  #{address},
-            status =  #{status},
-            score =  #{score},
-            create_time =  #{createTime},
-            update_time =  #{updateTime},
-            deleted =  #{deleted}
-        where   id = #{id} 
+        set user_id           = #{userId},
+            car_id            = #{carId},
+            trade_no          = #{tradeNo},
+            start_rental_time = #{startRentalTime},
+            end_rental_time   = #{endRentalTime},
+            price             = #{price},
+            address           = #{address},
+            status            = #{status},
+            score             = #{score},
+            create_time       = #{createTime},
+            update_time       = #{updateTime},
+            deleted           = #{deleted}
+        where id = #{id}
     </update>
 
     <update id="cancelOrder">
         update rental_order
         set status = 4
         where deleted = 0
-        and status = 0
-        and id = #{id}
+          and status = 0
+          and id = #{id}
     </update>
 
     <update id="updateStatus">
         update rental_order
         set status = #{status}
         where deleted = 0
-        and id = #{orderId}
+          and id = #{orderId}
     </update>
 
     <update id="updateStatusBatch">
@@ -281,6 +287,13 @@
         <foreach item="id" collection="ids" open="(" separator="," close=")">
             #{id}
         </foreach>
+    </update>
+
+    <update id="updateTradeNo">
+        update rental_order
+        set trade_no = #{tradeNo}
+        where deleted = 0
+          and id = #{orderId}
     </update>
 
 </mapper>

@@ -1,7 +1,6 @@
 package com.losgai.sys.service.rental;
 
 import com.losgai.sys.dto.BookingDto;
-import com.losgai.sys.dto.RentalOrderDto;
 import com.losgai.sys.enums.ResultCodeEnum;
 import com.losgai.sys.vo.OrderVo;
 import com.losgai.sys.vo.ShowOrderVo;
@@ -22,7 +21,7 @@ public interface OrderService {
 
     String pay(Long orderId);
 
-    ResultCodeEnum update(RentalOrderDto rentalOrder);
+    ResultCodeEnum cancel(Long orderId);
 
     List<ShowOrderVo> userQuery(String keyWord, Date start, Date end, Integer status);
 

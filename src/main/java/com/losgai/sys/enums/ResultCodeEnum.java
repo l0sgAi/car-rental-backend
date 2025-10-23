@@ -24,7 +24,8 @@ public enum ResultCodeEnum {
     DATE_ERROR(512, "选择的日期不合法"),
     NO_SUCH_CAR(513, "没有此车辆"),
     LESS_THAN_LIMIT(514,"租期需超过最小租期天数"),
-    PAYMENT_FAILED(515,"支付回调失败" );
+    PAYMENT_FAILED(515,"支付回调失败" ),
+    ORDER_STATUS_ERROR(516,"订单状态错误" );
 
     private Integer code;      // 业务状态码
     private String message;    // 响应消息

@@ -84,11 +84,12 @@ CREATE TABLE `rental_order`
     `id`                bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
     `user_id`           bigint unsigned NOT NULL COMMENT '对应用户ID',
     `car_id`            bigint unsigned NOT NULL COMMENT '对应车辆ID',
+    `trade_no`          varchar(255)    NOT NULL COMMENT '支付宝订单编号',
 
     `start_rental_time` date            NOT NULL COMMENT '车辆起租日期',
     `end_rental_time`   date            NOT NULL COMMENT '车辆还车日期',
     `price`             decimal(10, 2)  NOT NULL COMMENT '订单总额(人民币元)',
-    `address`           varchar(255)     NOT NULL COMMENT '取还车地址',
+    `address`           varchar(255)    NOT NULL COMMENT '取还车地址',
 
     `status`            tinyint         NOT NULL DEFAULT '0' COMMENT '订单状态：0=新建/待支付，1=已支付，2=租赁中，3=已完成，4=已取消 5=待退款 6=已退款',
     `score`             int                      DEFAULT NULL COMMENT '订单评分0-10，计入车辆均分',
@@ -139,4 +140,4 @@ CREATE TABLE `like`
 
 -- 添加唯一索引
 ALTER TABLE `like`
-ADD UNIQUE KEY uk_user_comment (user_id, comment_id);
+    ADD UNIQUE KEY uk_user_comment (user_id, comment_id);

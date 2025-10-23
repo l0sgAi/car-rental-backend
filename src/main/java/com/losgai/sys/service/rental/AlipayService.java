@@ -13,4 +13,6 @@ public interface AlipayService {
     String getReturnUrl(HttpServletRequest request);
 
     String getNotifyUrl(HttpServletRequest request);
+
+
 }

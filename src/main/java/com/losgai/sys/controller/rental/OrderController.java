@@ -6,7 +6,6 @@ import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.losgai.sys.common.sys.Result;
 import com.losgai.sys.dto.BookingDto;
-import com.losgai.sys.dto.RentalOrderDto;
 import com.losgai.sys.entity.sys.User;
 import com.losgai.sys.enums.ResultCodeEnum;
 import com.losgai.sys.service.rental.OrderService;
@@ -73,10 +72,10 @@ public class OrderController {
         return Result.success(payForm);
     }
 
-    @PutMapping("/update")
-    @Tag(name = "修改订单",description = "用户修改订单状态，比如修改租赁时间、取消订单等")
-    public Result<String> update(@RequestBody @Valid RentalOrderDto rentalOrder) {
-        ResultCodeEnum codeEnum = orderService.update(rentalOrder);
+    @PutMapping("/cancel")
+    @Tag(name = "取消订单",description = "用户修改订单状态，取消订单")
+    public Result<String> cancel(@RequestParam Long orderId) {
+        ResultCodeEnum codeEnum = orderService.cancel(orderId);
         if (!Objects.equals(codeEnum.getCode(), ResultCodeEnum.SUCCESS.getCode())) {
             return Result.info(codeEnum.getCode(),codeEnum.getMessage());
         }
