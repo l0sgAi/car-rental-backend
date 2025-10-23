@@ -84,7 +84,7 @@ alipay:
   notifyUrl: https://car.mynatapp.cc/rental/payment/notify
   # 页面跳转同步通知页面路径
   # TODO: 换成前端公网部署地址下，你想返回的页面地址否则无效
-  returnUrl: https://l0sgai.github.io/car-rental-front/my-orders
+  returnUrl: https://l0sgai.github.io/car-rental-front/payment/success
   # 字符编码格式
   charset: utf-8
   # 返回格式

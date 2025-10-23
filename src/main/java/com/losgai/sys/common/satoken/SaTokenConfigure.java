@@ -39,6 +39,7 @@ public class SaTokenConfigure implements WebMvcConfigurer {
                             .notMatch("/sys/user/auth/**")
                             // 放行支付宝支付结果回调
                             .notMatch("/rental/payment/notify")
+                            .notMatch("/rental/payment/return")
                             .notMatchMethod("OPTIONS")
                             .check(r -> StpUtil.checkLogin());
 
