@@ -1,9 +1,12 @@
 package com.losgai.sys.controller.rental;
 
 import cn.dev33.satoken.annotation.SaCheckRole;
+import cn.hutool.db.PageResult;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import com.losgai.sys.common.sys.ESPageResult;
 import com.losgai.sys.common.sys.Result;
+import com.losgai.sys.dto.CarSearchPageParam;
 import com.losgai.sys.dto.CarSearchParam;
 import com.losgai.sys.entity.carRental.Car;
 import com.losgai.sys.enums.ResultCodeEnum;
@@ -102,6 +105,12 @@ public class CarController {
     @Tag(name = "获取所有车辆信息", description = "通过查询/筛选获取当前车辆信息")
     public Result<List<Car>> globalQuery(@RequestBody CarSearchParam carSearchParam) {
         return Result.success(carService.globalQuery(carSearchParam));
+    }
+
+    @PostMapping("/globalQueryWithPage")
+    @Tag(name = "获取所有车辆信息", description = "通过查询/筛选获取当前车辆信息（分页）")
+    public Result<ESPageResult<Car>> globalQueryWithPage(@RequestBody CarSearchPageParam carSearchParam) {
+        return Result.success(carService.globalQueryWithPage(carSearchParam));
     }
 
 }
