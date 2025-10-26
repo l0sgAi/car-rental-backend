@@ -38,5 +38,5 @@ public interface CarMapper {
 
     void updateHotScore(Long carId, Integer hot);
 
-    void updateCarAvgScoreBatch(List<OrderScoreDto> list);
+    void calculateCarAvgScoreBatch();
 }

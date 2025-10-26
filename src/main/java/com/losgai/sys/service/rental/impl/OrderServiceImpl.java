@@ -1,6 +1,7 @@
 package com.losgai.sys.service.rental.impl;
 
 import cn.dev33.satoken.stp.StpUtil;
+import cn.hutool.core.collection.CollUtil;
 import com.alibaba.excel.EasyExcel;
 import com.alibaba.excel.ExcelWriter;
 import com.alibaba.excel.write.metadata.WriteSheet;
@@ -538,7 +539,7 @@ public class OrderServiceImpl implements OrderService {
      * 3.统计每个订单的评分，并更新车辆评分
      */
     @Transactional
-    @Scheduled(cron = "0 0 2 * * ?")
+    @Scheduled(cron = "0 45 2 * * ?")
     public void upDateOrderStatus() {
         List<RentalOrder> orders = rentalOrderMapper.selectOrdersByStatus(1L, 2L);
         List<Long> toRenting = new ArrayList<>();
@@ -556,25 +557,14 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
-        rentalOrderMapper.updateStatusBatch(toRenting, 2);
-        rentalOrderMapper.updateStatusBatch(toComplete, 3);
+        if(CollUtil.isNotEmpty(toRenting))
+            rentalOrderMapper.updateStatusBatch(toRenting, 2);
+        if(CollUtil.isNotEmpty(toComplete))
+            rentalOrderMapper.updateStatusBatch(toComplete, 3);
+        log.info("更新订单状态:正在租赁的订单数={},已完成的订单数={}", toRenting.size(), toComplete.size());
 
         // 更新车辆评分
-        List<OrderScoreDto> list = rentalOrderMapper.getScoredList();
-        // 根据carId计算平均分，<carId,avgScore>
-        Map<Long, Double> avgScoreMap = list.stream()
-                .collect(Collectors.groupingBy(
-                        OrderScoreDto::getCarId,
-                        Collectors.averagingInt(OrderScoreDto::getScore)
-                ));
-
-        // 转换成<avgScore>列表
-        List<OrderScoreDto> avgList = avgScoreMap.entrySet()
-                .stream()
-                .map(e -> new OrderScoreDto(e.getKey(), e.getValue()))
-                .toList();
-
-        // 批量插入数据库
-        carMapper.updateCarAvgScoreBatch(avgList);
+        carMapper.calculateCarAvgScoreBatch();
+        log.info("更新车辆评分完成");
     }
 }

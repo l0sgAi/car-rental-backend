@@ -290,16 +290,18 @@
         AND deleted = 0
     </update>
 
-    <update id="updateCarAvgScoreBatch">
-        UPDATE car
-        SET avg_score = CASE car_id
-        <foreach collection="list" item="item">
-            WHEN #{item.carId} THEN #{item.avgScore}
-        </foreach>
-        END
-        WHERE car_id IN
-        <foreach collection="list" item="item" open="(" separator="," close=")">
-            #{item.carId}
-        </foreach>
+    <!--直接计算车辆均分-->
+    <update id="calculateCarAvgScoreBatch">
+        UPDATE car c
+            JOIN (
+                SELECT car_id, ROUND(AVG(score), 0) AS avgScore
+                FROM rental_order
+                WHERE deleted = 0
+                AND status = 3
+                AND score IS NOT NULL
+                GROUP BY car_id
+            ) t ON c.id = t.car_id
+        SET c.avg_score = t.avgScore
+        WHERE c.deleted = 0;
     </update>
 </mapper>
