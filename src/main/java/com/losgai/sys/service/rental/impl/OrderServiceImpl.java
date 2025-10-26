@@ -6,11 +6,8 @@ import com.alibaba.excel.ExcelWriter;
 import com.alibaba.excel.write.metadata.WriteSheet;
 import com.alibaba.excel.write.metadata.style.WriteCellStyle;
 import com.alibaba.excel.write.style.HorizontalCellStyleStrategy;
-import com.losgai.sys.config.RabbitMQAiMessageConfig;
-import com.losgai.sys.dto.BookingDto;
-import com.losgai.sys.dto.OrderDetailExportDTO;
-import com.losgai.sys.dto.OrderStatisticsExportDTO;
-import com.losgai.sys.dto.RefundDto;
+import com.losgai.sys.config.RabbitMQMessageConfig;
+import com.losgai.sys.dto.*;
 import com.losgai.sys.entity.carRental.Car;
 import com.losgai.sys.entity.carRental.RentalOrder;
 import com.losgai.sys.enums.ResultCodeEnum;
@@ -91,7 +88,8 @@ public class OrderServiceImpl implements OrderService {
         order.setUserId(StpUtil.getLoginIdAsLong());
         order.setCarId(bookingDto.getCarId());
         order.setStatus(0);
-        order.setDeleted(0);order.setAddress(bookingDto.getAddress());
+        order.setDeleted(0);
+        order.setAddress(bookingDto.getAddress());
 
         // 计算订单租车日期
         Date startRentalTime = bookingDto.getStartRentalTime();
@@ -142,8 +140,8 @@ public class OrderServiceImpl implements OrderService {
         // 插入数据库
         rentalOrderMapper.insert(order);
         // 发送到消息队列延迟更新订单状态
-        sender.sendOrder(RabbitMQAiMessageConfig.EXCHANGE_NAME,
-                RabbitMQAiMessageConfig.ROUTING_KEY_ORDER_DELAY,
+        sender.sendOrder(RabbitMQMessageConfig.EXCHANGE_NAME,
+                RabbitMQMessageConfig.ROUTING_KEY_ORDER_DELAY,
                 order);
         return order.getId();
 
@@ -183,7 +181,7 @@ public class OrderServiceImpl implements OrderService {
                         return ResultCodeEnum.NO_SUCH_CAR.getMessage();
                     }
                     // 检查车辆日期冲突
-                    if(!OrderDateRangeCheck(rentalOrder)){
+                    if (!OrderDateRangeCheck(rentalOrder)) {
                         return ResultCodeEnum.DATE_ERROR.getMessage();
                     }
 
@@ -236,7 +234,7 @@ public class OrderServiceImpl implements OrderService {
     public ResultCodeEnum cancel(Long orderId) {
         RentalOrder rentalOrder = rentalOrderMapper.selectByPrimaryKey(orderId);
 
-        if(rentalOrder.getStatus()!=0 && rentalOrder.getStatus()!=1){
+        if (rentalOrder.getStatus() != 0 && rentalOrder.getStatus() != 1) {
             return ResultCodeEnum.ORDER_STATUS_ERROR;
         }
 
@@ -255,17 +253,17 @@ public class OrderServiceImpl implements OrderService {
                 // 2. 获取锁成功，执行核心业务逻辑
                 log.info("线程 {} 获取车辆 {} 的锁成功", Thread.currentThread().threadId(), carId);
                 // 已支付的情况，需要退款
-                if(rentalOrder.getStatus()==1){
+                if (rentalOrder.getStatus() == 1) {
                     RefundDto refundDto = new RefundDto();
                     refundDto.setOrderId(rentalOrder.getId());
                     refundDto.setRefundReason("用户取消订单");
                     // 发送退款消息
                     sender.sendOrderRefund(
-                            RabbitMQAiMessageConfig.EXCHANGE_NAME,
-                            RabbitMQAiMessageConfig.ROUTING_KEY_REFUND,
+                            RabbitMQMessageConfig.EXCHANGE_NAME,
+                            RabbitMQMessageConfig.ROUTING_KEY_REFUND,
                             refundDto
-                            );
-                }else {
+                    );
+                } else {
                     // 未支付的情况，不需要退款
                     rentalOrderMapper.updateStatus(orderId, 4);
                 }
@@ -292,6 +290,29 @@ public class OrderServiceImpl implements OrderService {
     @Description("用户查询自己的订单")
     public List<ShowOrderVo> userQuery(String keyWord, Date start, Date end, Integer status) {
         return rentalOrderMapper.userQuery(keyWord, start, end, status, StpUtil.getLoginIdAsLong());
+    }
+
+    @Override
+    @Description("用户给订单打分")
+    public ResultCodeEnum ranking(Long orderId, Integer score) {
+        if (score < 0 || score > 10) {
+            return ResultCodeEnum.DATA_ERROR;
+        }
+        RentalOrder rentalOrder = rentalOrderMapper.selectByPrimaryKey(orderId);
+        if (rentalOrder == null) {
+            return ResultCodeEnum.DATA_ERROR;
+        }
+        if (rentalOrder.getScore() != null) {
+            return ResultCodeEnum.DUPLICATED;
+        }
+        // 状态3是已完成
+        if (rentalOrder.getStatus() != 3) {
+            return ResultCodeEnum.ORDER_STATUS_ERROR;
+        }
+        if (rentalOrder.getUserId().equals(StpUtil.getLoginIdAsLong())) {
+            rentalOrderMapper.updateScore(orderId, score);
+        }
+        return ResultCodeEnum.SUCCESS;
     }
 
     @Override
@@ -475,6 +496,7 @@ public class OrderServiceImpl implements OrderService {
 
     /**
      * 检查车辆时间段是否可租
+     *
      * @param rentalOrder
      * @return true/false 是否合法
      */
@@ -513,11 +535,12 @@ public class OrderServiceImpl implements OrderService {
      * 定时任务:每天凌晨2点更新：
      * 1.如果现在的日期离租赁开始日期<=1天，把状态为1=已付款的订单修改为2=租赁中
      * 2.如果现在的日期离租赁结束日期<=1天，把状态为2=租赁中的订单修改为3=已完成
-     * */
+     * 3.统计每个订单的评分，并更新车辆评分
+     */
     @Transactional
     @Scheduled(cron = "0 0 2 * * ?")
-    public void upDateOrderStatus(){
-        List<RentalOrder> orders = rentalOrderMapper.selectOrdersByStatus(1L,2L);
+    public void upDateOrderStatus() {
+        List<RentalOrder> orders = rentalOrderMapper.selectOrdersByStatus(1L, 2L);
         List<Long> toRenting = new ArrayList<>();
         List<Long> toComplete = new ArrayList<>();
 
@@ -527,13 +550,31 @@ public class OrderServiceImpl implements OrderService {
             // 先处理需要完成的订单
             if (OrderUtils.isFinished(endRentalTime)) {
                 toComplete.add(rentalOrder.getId());
-            }else if (OrderUtils.isRenting(startRentalTime)){
+            } else if (OrderUtils.isRenting(startRentalTime)) {
                 // 处理正在租赁的订单
                 toRenting.add(rentalOrder.getId());
             }
         }
 
-        rentalOrderMapper.updateStatusBatch(toRenting,2);
-        rentalOrderMapper.updateStatusBatch(toComplete,3);
+        rentalOrderMapper.updateStatusBatch(toRenting, 2);
+        rentalOrderMapper.updateStatusBatch(toComplete, 3);
+
+        // 更新车辆评分
+        List<OrderScoreDto> list = rentalOrderMapper.getScoredList();
+        // 根据carId计算平均分，<carId,avgScore>
+        Map<Long, Double> avgScoreMap = list.stream()
+                .collect(Collectors.groupingBy(
+                        OrderScoreDto::getCarId,
+                        Collectors.averagingInt(OrderScoreDto::getScore)
+                ));
+
+        // 转换成<avgScore>列表
+        List<OrderScoreDto> avgList = avgScoreMap.entrySet()
+                .stream()
+                .map(e -> new OrderScoreDto(e.getKey(), e.getValue()))
+                .toList();
+
+        // 批量插入数据库
+        carMapper.updateCarAvgScoreBatch(avgList);
     }
 }

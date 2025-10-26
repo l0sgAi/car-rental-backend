@@ -156,6 +156,15 @@
             #{id}
         </foreach>
     </select>
+    <select id="getScoredList" resultType="com.losgai.sys.dto.OrderScoreDto">
+        select
+        car_id as carId,
+        score as  score
+        from rental_order
+        where deleted = 0
+        and score is not null
+        and status = 3
+    </select>
 
     <update id="deleteByPrimaryKey" parameterType="java.lang.Long">
         update rental_order
@@ -294,6 +303,13 @@
         set trade_no = #{tradeNo}
         where deleted = 0
           and id = #{orderId}
+    </update>
+
+    <update id="updateScore">
+        update rental_order
+        set score = #{score}
+        where deleted = 0
+        and id = #{orderId}
     </update>
 
 </mapper>

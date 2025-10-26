@@ -2,7 +2,7 @@ package com.losgai.sys.service.rental.impl;
 
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.collection.CollUtil;
-import com.losgai.sys.config.RabbitMQAiMessageConfig;
+import com.losgai.sys.config.RabbitMQMessageConfig;
 import com.losgai.sys.entity.carRental.Comment;
 import com.losgai.sys.entity.carRental.Like;
 import com.losgai.sys.enums.ResultCodeEnum;
@@ -71,8 +71,8 @@ public class CommentServiceImpl implements CommentService {
         comment.setUpdateTime(Date.from(Instant.now()));
         comment.setDeleted(0);
         // 这里的缓存清除在消息队列消费者中执行
-        sender.sendCarReview(RabbitMQAiMessageConfig.EXCHANGE_NAME,
-                RabbitMQAiMessageConfig.ROUTING_KEY_COMMENT_CENSOR,
+        sender.sendCarReview(RabbitMQMessageConfig.EXCHANGE_NAME,
+                RabbitMQMessageConfig.ROUTING_KEY_COMMENT_CENSOR,
                 comment);
         return ResultCodeEnum.SUCCESS;
     }

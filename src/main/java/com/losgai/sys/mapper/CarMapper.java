@@ -1,6 +1,7 @@
 package com.losgai.sys.mapper;
 
 
+import com.losgai.sys.dto.OrderScoreDto;
 import com.losgai.sys.entity.carRental.Car;
 import org.apache.ibatis.annotations.Mapper;
 
@@ -36,4 +37,6 @@ public interface CarMapper {
     List<Car> getAllCanRentCars();
 
     void updateHotScore(Long carId, Integer hot);
+
+    void updateCarAvgScoreBatch(List<OrderScoreDto> list);
 }

@@ -12,7 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
-public class RabbitMQAiMessageConfig {
+public class RabbitMQMessageConfig {
 
     public static final String EXCHANGE_NAME = "sys.exchange";
 

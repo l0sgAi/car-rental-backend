@@ -12,7 +12,7 @@ import co.elastic.clients.elasticsearch.core.*;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import com.losgai.sys.common.sys.ESPageResult;
-import com.losgai.sys.config.RabbitMQAiMessageConfig;
+import com.losgai.sys.config.RabbitMQMessageConfig;
 import com.losgai.sys.dto.CarDocument;
 import com.losgai.sys.dto.CarSearchPageParam;
 import com.losgai.sys.dto.CarSearchParam;
@@ -171,8 +171,8 @@ public class CarServiceImpl implements CarService {
         carMapper.insert(car);
         if (car.getStatus() == 0) {
             // 通过消息队列，添加到ES中
-            sender.sendCar(RabbitMQAiMessageConfig.EXCHANGE_NAME,
-                    RabbitMQAiMessageConfig.ROUTING_KEY_CAR,
+            sender.sendCar(RabbitMQMessageConfig.EXCHANGE_NAME,
+                    RabbitMQMessageConfig.ROUTING_KEY_CAR,
                     car);
         }
         return ResultCodeEnum.SUCCESS;
@@ -185,13 +185,13 @@ public class CarServiceImpl implements CarService {
         carMapper.updateByPrimaryKeySelective(car);
         if (car.getStatus() == 0) {
             // 通过消息队列，添加到ES中
-            sender.sendCar(RabbitMQAiMessageConfig.EXCHANGE_NAME,
-                    RabbitMQAiMessageConfig.ROUTING_KEY_CAR_UPDATE,
+            sender.sendCar(RabbitMQMessageConfig.EXCHANGE_NAME,
+                    RabbitMQMessageConfig.ROUTING_KEY_CAR_UPDATE,
                     car);
         } else if (car.getStatus() == 1) {
             // 通过消息队列，删除ES中的文档
-            sender.sendCarDelete(RabbitMQAiMessageConfig.EXCHANGE_NAME,
-                    RabbitMQAiMessageConfig.ROUTING_KEY_CAR_DEL,
+            sender.sendCarDelete(RabbitMQMessageConfig.EXCHANGE_NAME,
+                    RabbitMQMessageConfig.ROUTING_KEY_CAR_DEL,
                     car.getId());
         }
         return ResultCodeEnum.SUCCESS;
@@ -205,8 +205,8 @@ public class CarServiceImpl implements CarService {
         carMapper.deleteOrdersByCarId(id);
         carMapper.deleteCommentsByCarId(id);
         // 通过消息队列，删除ES中的文档
-        sender.sendCarDelete(RabbitMQAiMessageConfig.EXCHANGE_NAME,
-                RabbitMQAiMessageConfig.ROUTING_KEY_CAR_DEL,
+        sender.sendCarDelete(RabbitMQMessageConfig.EXCHANGE_NAME,
+                RabbitMQMessageConfig.ROUTING_KEY_CAR_DEL,
                 id);
         return ResultCodeEnum.SUCCESS;
     }
@@ -217,8 +217,8 @@ public class CarServiceImpl implements CarService {
         // 获取所有可租车辆列表
         List<Car> cars = carMapper.getAllCanRentCars();
         // 通过消息队列，添加到ES中
-        sender.sendCars(RabbitMQAiMessageConfig.EXCHANGE_NAME,
-                RabbitMQAiMessageConfig.ROUTING_KEY_CAR_BATCH,
+        sender.sendCars(RabbitMQMessageConfig.EXCHANGE_NAME,
+                RabbitMQMessageConfig.ROUTING_KEY_CAR_BATCH,
                 cars);
         return ResultCodeEnum.SUCCESS;
     }
@@ -360,8 +360,8 @@ public class CarServiceImpl implements CarService {
             carMapper.updateHotScore(carId, hot); // 批量更新热度
             // 同时还要更新ES
             Car car = carMapper.selectByPrimaryKey(carId);
-            sender.sendCar(RabbitMQAiMessageConfig.EXCHANGE_NAME,
-                    RabbitMQAiMessageConfig.ROUTING_KEY_CAR_UPDATE,car);
+            sender.sendCar(RabbitMQMessageConfig.EXCHANGE_NAME,
+                    RabbitMQMessageConfig.ROUTING_KEY_CAR_UPDATE,car);
 
             // 清空刚才同步的热度
             redisTemplate.delete(key);

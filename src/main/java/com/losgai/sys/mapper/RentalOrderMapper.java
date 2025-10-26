@@ -1,6 +1,7 @@
 package com.losgai.sys.mapper;
 
 import com.losgai.sys.dto.BookingSlot;
+import com.losgai.sys.dto.OrderScoreDto;
 import com.losgai.sys.entity.carRental.RentalOrder;
 import com.losgai.sys.vo.ShowOrderVo;
 import org.apache.ibatis.annotations.Mapper;
@@ -60,4 +61,9 @@ public interface RentalOrderMapper {
     void updateStatusBatch(List<Long> ids, Integer status);
 
     void updateTradeNo(Long orderId, String tradeNo);
+
+    void updateScore(Long orderId, Integer score);
+
+    List<OrderScoreDto> getScoredList();
+
 }

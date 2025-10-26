@@ -1,7 +1,7 @@
 package com.losgai.sys.service.ai.impl;
 
 import cn.hutool.core.util.StrUtil;
-import com.losgai.sys.config.RabbitMQAiMessageConfig;
+import com.losgai.sys.config.RabbitMQMessageConfig;
 import com.losgai.sys.dto.AiChatParamDTO;
 import com.losgai.sys.entity.ai.AiConfig;
 import com.losgai.sys.entity.ai.AiMessagePair;
@@ -178,7 +178,7 @@ public class AiChatServiceImpl implements AiChatService {
                                 // 新增部分：消息队列发送
                                 // exchange 是交换机，决定消息往哪里发。
                                 // routingKey 是路由键，告诉交换机这条消息具体发给哪个队列。
-                                sender.sendMessage(RabbitMQAiMessageConfig.EXCHANGE_NAME, RabbitMQAiMessageConfig.ROUTING_KEY, aiMessagePairMapper.selectBySseSessionId(sessionId));
+                                sender.sendMessage(RabbitMQMessageConfig.EXCHANGE_NAME, RabbitMQMessageConfig.ROUTING_KEY, aiMessagePairMapper.selectBySseSessionId(sessionId));
                             });
             return true;
         }, Executors.newVirtualThreadPerTaskExecutor());
