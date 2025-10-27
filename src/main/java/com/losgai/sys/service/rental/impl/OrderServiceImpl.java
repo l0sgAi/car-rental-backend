@@ -2,6 +2,7 @@ package com.losgai.sys.service.rental.impl;
 
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.StrUtil;
 import com.alibaba.excel.EasyExcel;
 import com.alibaba.excel.ExcelWriter;
 import com.alibaba.excel.write.metadata.WriteSheet;
@@ -11,6 +12,7 @@ import com.losgai.sys.config.RabbitMQMessageConfig;
 import com.losgai.sys.dto.*;
 import com.losgai.sys.entity.carRental.Car;
 import com.losgai.sys.entity.carRental.RentalOrder;
+import com.losgai.sys.entity.sys.User;
 import com.losgai.sys.enums.ResultCodeEnum;
 import com.losgai.sys.mapper.CarMapper;
 import com.losgai.sys.mapper.RentalOrderMapper;
@@ -18,6 +20,7 @@ import com.losgai.sys.mq.sender.Sender;
 import com.losgai.sys.service.rental.AlipayService;
 import com.losgai.sys.service.rental.CalculationService;
 import com.losgai.sys.service.rental.OrderService;
+import com.losgai.sys.service.sys.UserService;
 import com.losgai.sys.util.OrderUtils;
 import com.losgai.sys.vo.OrderVo;
 import com.losgai.sys.vo.ShowOrderVo;
@@ -54,6 +57,8 @@ public class OrderServiceImpl implements OrderService {
 
     private final CalculationService calculationService;
 
+    private final UserService userService;
+
     private final AlipayService alipayService;
 
     private final RedissonClient redissonClient;
@@ -83,6 +88,22 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Description("生成订单,前端提交租车起始日期、车辆id")
     public Long create(BookingDto bookingDto) {
+        User userInfo = userService.getUserInfo();
+        // 检查用户信息
+        if (userInfo == null) {
+            return -1L;
+        }
+        // 计算年龄，需>=18岁
+        LocalDate localDate = userInfo.getBirthdate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        LocalDate now = LocalDate.now();
+        if (localDate.until(now, ChronoUnit.YEARS) < 18) {
+            return -1L;
+        }
+        // 缺少驾驶证或身份证将无法租车
+        if(StrUtil.isBlank(userInfo.getIdNumber()) || StrUtil.isBlank(userInfo.getLicenseNumber())){
+            return -1L;
+        }
+
         RentalOrder order = new RentalOrder();
 
         // 基本信息
