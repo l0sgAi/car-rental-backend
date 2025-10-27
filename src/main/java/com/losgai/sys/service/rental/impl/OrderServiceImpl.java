@@ -90,7 +90,7 @@ public class OrderServiceImpl implements OrderService {
     public Long create(BookingDto bookingDto) {
         User userInfo = userService.getUserInfo();
         // 检查用户信息
-        if (userInfo == null) {
+        if (userInfo == null || userInfo.getBirthdate() == null) {
             return -1L;
         }
         // 计算年龄，需>=18岁
