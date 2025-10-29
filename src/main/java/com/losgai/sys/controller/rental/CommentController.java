@@ -16,6 +16,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -71,6 +76,28 @@ public class CommentController {
             @RequestParam(defaultValue = "10") int pageSize) {
         // 开启分页
         PageHelper.startPage(pageNum, pageSize);
+        // 执行查询
+        List<TopCommentVo> list = commentService.query(keyWord);
+        // 获取分页信息
+        PageInfo<TopCommentVo> pageInfo = new PageInfo<>(list);
+        // 清理分页
+        PageHelper.clearPage();
+        // 使用自定义分页返回方法
+        return Result.page(list, pageInfo.getTotal());
+    }
+
+    @SaCheckRole("admin")
+    @GetMapping("/admin/listWithCursor")
+    @Tag(name = "获取所有评论信息", description = "管理员分页获取当前所有评论信息列表")
+    public Result<List<TopCommentVo>> queryWithCursor(
+            @RequestParam(required = false) String keyWord,
+            @RequestParam(defaultValue = "0") String lastDate,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        if(lastDate.equals("0")){
+            lastDate = null;
+        }
+        // 开启分页
+        PageHelper.startCursor("c.create_time",lastDate,pageSize,false);
         // 执行查询
         List<TopCommentVo> list = commentService.query(keyWord);
         // 获取分页信息

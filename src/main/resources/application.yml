@@ -34,6 +34,17 @@ spring:
       port: 6389
 #      password:
 
+# 日志
+logging:
+  level:
+    root: DEBUG
+
+pagehelper:
+  helperDialect: mysql
+  reasonable: true
+  supportMethodsArguments: true
+  params: count=countSql
+
 #Sa-Token 配置
 sa-token:
   # token 名称（同时也是 cookie 名称）
