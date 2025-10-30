@@ -289,4 +289,19 @@
         WHERE id = #{carId}
         AND deleted = 0
     </update>
+
+    <!--直接计算车辆均分-->
+    <update id="calculateCarAvgScoreBatch">
+        UPDATE car c
+            JOIN (
+                SELECT car_id, ROUND(AVG(score), 0) AS avgScore
+                FROM rental_order
+                WHERE deleted = 0
+                AND status = 3
+                AND score IS NOT NULL
+                GROUP BY car_id
+            ) t ON c.id = t.car_id
+        SET c.avg_score = t.avgScore
+        WHERE c.deleted = 0;
+    </update>
 </mapper>

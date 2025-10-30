@@ -10,7 +10,7 @@ import com.alipay.api.request.AlipayTradeQueryRequest;
 import com.alipay.api.response.AlipayTradePagePayResponse;
 import com.alipay.api.response.AlipayTradeQueryResponse;
 import com.losgai.sys.config.AliPayConfig;
-import com.losgai.sys.config.RabbitMQAiMessageConfig;
+import com.losgai.sys.config.RabbitMQMessageConfig;
 import com.losgai.sys.dto.RefundDto;
 import com.losgai.sys.entity.carRental.RentalOrder;
 import com.losgai.sys.mapper.RentalOrderMapper;
@@ -228,8 +228,8 @@ public class AlipayServiceImpl implements AlipayService {
                                 refundDto.setRefundReason("订单支付时与其它用户冲突");
                                 // 发送退款消息
                                 sender.sendOrderRefund(
-                                        RabbitMQAiMessageConfig.EXCHANGE_NAME,
-                                        RabbitMQAiMessageConfig.ROUTING_KEY_REFUND,
+                                        RabbitMQMessageConfig.EXCHANGE_NAME,
+                                        RabbitMQMessageConfig.ROUTING_KEY_REFUND,
                                         refundDto);
                             }
                         } catch (InterruptedException e) {
@@ -250,8 +250,8 @@ public class AlipayServiceImpl implements AlipayService {
                         refundDto.setRefundReason("订单日期有冲突");
                         // 发送退款消息
                         sender.sendOrderRefund(
-                                RabbitMQAiMessageConfig.EXCHANGE_NAME,
-                                RabbitMQAiMessageConfig.ROUTING_KEY_REFUND,
+                                RabbitMQMessageConfig.EXCHANGE_NAME,
+                                RabbitMQMessageConfig.ROUTING_KEY_REFUND,
                                 refundDto);
                     }
                 }

@@ -1,5 +1,8 @@
 package com.losgai.sys.service.rental;
 
+import cn.hutool.db.PageResult;
+import com.losgai.sys.common.sys.ESPageResult;
+import com.losgai.sys.dto.CarSearchPageParam;
 import com.losgai.sys.dto.CarSearchParam;
 import com.losgai.sys.entity.carRental.Car;
 import com.losgai.sys.enums.ResultCodeEnum;
@@ -30,4 +33,6 @@ public interface CarService {
     boolean deleteESDoc(String indexName, String docId) throws IOException;
 
     Car getCarById(Long id);
+
+    ESPageResult<Car> globalQueryWithPage(CarSearchPageParam carSearchParam);
 }

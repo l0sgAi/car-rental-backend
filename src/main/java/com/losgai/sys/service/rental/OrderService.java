@@ -25,4 +25,5 @@ public interface OrderService {
 
     List<ShowOrderVo> userQuery(String keyWord, Date start, Date end, Integer status);
 
+    ResultCodeEnum ranking(Long orderId, Integer score);
 }

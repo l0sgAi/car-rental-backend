@@ -34,6 +34,17 @@ spring:
       port: 6389
 #      password:
 
+# 日志
+logging:
+  level:
+    root: DEBUG
+
+pagehelper:
+  helperDialect: mysql
+  reasonable: true
+  supportMethodsArguments: true
+  params: count=countSql
+
 #Sa-Token 配置
 sa-token:
   # token 名称（同时也是 cookie 名称）
@@ -50,6 +61,11 @@ sa-token:
   token-style: uuid
   # 是否输出操作日志
   is-log: true
+  # 是否读取 cookie
+  is-read-cookie: true
+  # 是否写入header
+  is-write-header: true
+
 
 mybatis:
   mapper-locations: classpath:mapper/**/*.xml
@@ -76,10 +92,10 @@ alipay:
   signType: RSA2
   # 回调的公网地址
   # TODO: 换成后端公网部署地址，否则无效
-  notifyUrl: http://p383f6cc.natappfree.cc/rental/payment/notify
+  notifyUrl: https://car.mynatapp.cc/rental/payment/notify
   # 页面跳转同步通知页面路径
   # TODO: 换成前端公网部署地址下，你想返回的页面地址否则无效
-  returnUrl: http://localhost:5173/my-orders
+  returnUrl: https://l0sgai.github.io/car-rental-front/payment/success
   # 字符编码格式
   charset: utf-8
   # 返回格式

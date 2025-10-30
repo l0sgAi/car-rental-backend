@@ -2,7 +2,7 @@ package com.losgai.sys.service.rental.impl;
 
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.collection.CollUtil;
-import com.losgai.sys.config.RabbitMQAiMessageConfig;
+import com.losgai.sys.config.RabbitMQMessageConfig;
 import com.losgai.sys.entity.carRental.Comment;
 import com.losgai.sys.entity.carRental.Like;
 import com.losgai.sys.enums.ResultCodeEnum;
@@ -53,7 +53,7 @@ public class CommentServiceImpl implements CommentService {
     private static final String LOCK_KEY_PREFIX_COMMENT_LIKE = "lock:comment:like:";
 
     @Override
-    @CacheEvict(value = "commentCache", key = "#comment.carId")
+//    @CacheEvict(value = "commentCache", key = "#comment.carId")
     public ResultCodeEnum add(Comment comment, Long userId) {
         comment.setUserId(userId);
         comment.setCreateTime(Date.from(Instant.now()));
@@ -71,8 +71,8 @@ public class CommentServiceImpl implements CommentService {
         comment.setUpdateTime(Date.from(Instant.now()));
         comment.setDeleted(0);
         // 这里的缓存清除在消息队列消费者中执行
-        sender.sendCarReview(RabbitMQAiMessageConfig.EXCHANGE_NAME,
-                RabbitMQAiMessageConfig.ROUTING_KEY_COMMENT_CENSOR,
+        sender.sendCarReview(RabbitMQMessageConfig.EXCHANGE_NAME,
+                RabbitMQMessageConfig.ROUTING_KEY_COMMENT_CENSOR,
                 comment);
         return ResultCodeEnum.SUCCESS;
     }
@@ -208,58 +208,32 @@ public class CommentServiceImpl implements CommentService {
         if (commentId == null || userId == null) {
             return ResultCodeEnum.DATA_ERROR;
         }
-
         // 尝试重建缓存，同时获取key
         String key = rebuildLikedCache(commentId);
 
-        // 1. 获取对应 commentId 的锁
-        RLock lock = redissonClient.getLock(LOCK_KEY_PREFIX_COMMENT_LIKE + commentId);
+        // 判断是否已点赞
+        Boolean isMember = redisTemplate.opsForSet().isMember(key, userId);
 
-        boolean isLocked = false;
-
-        try {
-            // 2. 尝试获取锁
-            // 参数: 等待时间, 锁自动释放时间, 时间单位
-            // 用户操作，等待时间不宜过长，比如最多等3秒
-            isLocked = lock.tryLock(3, 10, TimeUnit.SECONDS);
-
-            if (isLocked) {
-                // 判断是否已点赞
-                Boolean isMember = redisTemplate.opsForSet().isMember(key, userId);
-
-                if (Boolean.TRUE.equals(isMember)) {
-                    // 已点赞 -> 取消点赞
-                    // 如果是最后一个点赞被取消，需要防止删除key
-                    // 使用-1L占位，表示该用户已取消点赞
-                    redisTemplate.opsForSet().add(key, -1L);
-                    redisTemplate.opsForSet().remove(key, userId);
-                } else {
-                    // 未点赞 -> 点赞前校验数量
-                    Long currentLike = redisTemplate.opsForSet().size(key);
-                    if (currentLike != null && currentLike >= 50000) {
-                        return ResultCodeEnum.DATA_ERROR; // 点赞已达上限
-                    }
-                    // 新增点赞，需要延长过期时间至永久
-                    redisTemplate.opsForSet().add(key, userId);
-                }
-
-                // 加入待同步列表
-                redisTemplate.opsForSet().add(LIKE_SYNC_SET, commentId);
-                return ResultCodeEnum.SUCCESS;
-            } else {
-                // 获取锁失败
-                return ResultCodeEnum.SYSTEM_ERROR;
+        if (Boolean.TRUE.equals(isMember)) {
+            // 已点赞 -> 取消点赞
+            // 如果是最后一个点赞被取消，需要防止删除key
+            // 使用-1L占位，表示该用户已取消点赞
+            redisTemplate.opsForSet().add(key, -1L);
+            redisTemplate.opsForSet().remove(key, userId);
+        } else {
+            // 未点赞 -> 点赞前校验数量
+            Long currentLike = redisTemplate.opsForSet().size(key);
+            if (currentLike != null && currentLike >= 50000) {
+                return ResultCodeEnum.DATA_ERROR; // 点赞已达上限
             }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.error("用户 {} 操作评论 {} 时获取锁被中断", userId, commentId, e);
-            throw new RuntimeException("系统异常，请稍后再试");
-        } finally {
-            // 3. 释放锁
-            if (isLocked && lock.isLocked()) {
-                lock.unlock();
-            }
+            // 新增点赞，需要延长过期时间至永久
+            redisTemplate.opsForSet().add(key, userId);
         }
+
+        // 加入待同步列表
+        redisTemplate.opsForSet().add(LIKE_SYNC_SET, commentId);
+        return ResultCodeEnum.SUCCESS;
+
     }
 
     public Map<Long, Long> queryCommentLikeCounts(List<Long> commentIds) {

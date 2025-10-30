@@ -29,31 +29,38 @@
     </select>
 
     <select id="query" resultType="com.losgai.sys.vo.TopCommentVo">
-        SELECT c.id                 AS id,
-               c.user_id            AS userId,
-               u.username           AS username,
-               u.avatar_url         AS avatar,
-               c.car_id             AS carId,
-               c2.name              AS carName,
-               IF(u.role = 1, 2, 0) AS userType,
-               ro.score             AS score,
-               c.parent_comment_id  AS parentCommentId,
-               c.follow_comment_id  AS followCommentId,
-               c.content            AS content,
-               c.like_count         AS likeCount,
-               c.create_time        AS createTime
+        SELECT c.id AS id,
+        c.user_id AS userId,
+        u.username AS username,
+        u.avatar_url AS avatar,
+        c.car_id AS carId,
+        c2.name AS carName,
+        IF(u.role = 1, 2, 0) AS userType,
+        ro.score AS score,
+        c.parent_comment_id AS parentCommentId,
+        c.follow_comment_id AS followCommentId,
+        c.content AS content,
+        c.like_count AS likeCount,
+        c.create_time AS createTime
         FROM comment c
-                 LEFT JOIN user u ON c.user_id = u.id
-                 LEFT JOIN car c2 ON c.car_id = c2.id
-                 LEFT JOIN rental_order ro ON c.car_id = ro.car_id and ro.user_id = c.user_id
+        LEFT JOIN user u ON c.user_id = u.id
+        LEFT JOIN car c2 ON c.car_id = c2.id
+        LEFT JOIN (SELECT user_id, car_id, score
+        FROM (SELECT ro.*,
+        ROW_NUMBER() OVER (PARTITION BY user_id, car_id ORDER BY create_time DESC) AS rn
+        FROM rental_order ro
+        WHERE ro.deleted = 0
+        AND ro.status = 3
+        AND ro.score IS NOT NULL) t
+        WHERE t.rn = 1) ro ON ro.user_id = c.user_id AND ro.car_id = c.car_id
         WHERE c.deleted = 0
         AND c.parent_comment_id = 0
         <if test="keyWord != null and keyWord != ''">
             AND (
-                c.content like concat('%', #{keyWord}, '%')
-                OR u.username like concat('%', #{keyWord}, '%')
-                OR c2.name like concat('%', #{keyWord}, '%')
-                )
+            c.content like concat('%', #{keyWord}, '%')
+            OR u.username like concat('%', #{keyWord}, '%')
+            OR c2.name like concat('%', #{keyWord}, '%')
+            )
         </if>
         ORDER BY c.create_time DESC
     </select>
@@ -74,7 +81,16 @@
                c.create_time        AS createTime
         FROM comment c
                  LEFT JOIN user u ON c.user_id = u.id
-                 LEFT JOIN rental_order ro ON c.car_id = ro.car_id and ro.user_id = c.user_id
+                 LEFT JOIN (SELECT user_id, car_id, score
+                            FROM (SELECT user_id,
+                                         car_id,
+                                         score,
+                                         ROW_NUMBER() OVER (PARTITION BY user_id, car_id ORDER BY create_time DESC) AS rn
+                                  FROM rental_order ro
+                                  WHERE ro.deleted = 0
+                                    AND ro.status = 3
+                                    AND ro.score IS NOT NULL) t
+                            WHERE t.rn = 1) ro ON ro.user_id = c.user_id AND ro.car_id = c.car_id
         WHERE c.car_id = #{carId}
           AND c.deleted = 0
           AND c.parent_comment_id = 0
@@ -97,35 +113,21 @@
                c.create_time        AS createTime
         FROM comment c
                  LEFT JOIN user u ON c.user_id = u.id
-                 LEFT JOIN rental_order ro ON c.car_id = ro.car_id and ro.user_id = c.user_id
+                 LEFT JOIN (SELECT user_id, car_id, score
+                            FROM (SELECT user_id,
+                                         car_id,
+                                         score,
+                                         ROW_NUMBER() OVER (PARTITION BY user_id, car_id ORDER BY create_time DESC) AS rn
+                                  FROM rental_order ro
+                                  WHERE ro.deleted = 0
+                                    AND ro.status = 3
+                                    AND ro.score IS NOT NULL) t
+                            WHERE t.rn = 1) ro ON ro.user_id = c.user_id AND ro.car_id = c.car_id
         WHERE c.car_id = #{carId}
           AND c.deleted = 0
           AND c.parent_comment_id = 0
         ORDER BY c.like_count DESC, c.create_time DESC
     </select>
-
-<!--    <select id="queryVoByIds" resultType="com.losgai.sys.vo.CommentVo">-->
-<!--        SELECT-->
-<!--            c.id AS id,-->
-<!--            c.user_id AS userId,-->
-<!--            u.username AS username,-->
-<!--            u.avatar_url AS avatar,-->
-<!--            c.car_id AS carId,-->
-<!--            c.parent_comment_id AS parentCommentId,-->
-<!--            c.follow_comment_id AS followCommentId,-->
-<!--            c.content AS content,-->
-<!--            c.like_count AS likeCount,-->
-<!--            c.create_time AS createTime-->
-<!--        FROM comment c-->
-<!--                 LEFT JOIN user u ON c.user_id = u.id-->
-<!--        WHERE c.deleted = 0-->
-<!--          AND c.parent_comment_id in (-->
-<!--            <foreach item="item" collection="ids" separator=",">-->
-<!--                #{item}-->
-<!--            </foreach>-->
-<!--        )-->
-<!--        ORDER BY c.like_count DESC-->
-<!--    </select>-->
 
     <!--窗口函数，对于每个parentId取3个评论-->
     <select id="queryVoByIds" resultType="com.losgai.sys.vo.CommentVo">

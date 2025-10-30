@@ -82,6 +82,19 @@ public class OrderController {
         return Result.success("下单成功");
     }
 
+    @PutMapping("/ranking")
+    @Tag(name = "订单评分",description = "用户给订单打分0-10")
+    public Result<String> ranking(
+            @RequestParam Long orderId,
+            @RequestParam Integer score
+    ) {
+        ResultCodeEnum codeEnum = orderService.ranking(orderId,score);
+        if (!Objects.equals(codeEnum.getCode(), ResultCodeEnum.SUCCESS.getCode())) {
+            return Result.info(codeEnum.getCode(),codeEnum.getMessage());
+        }
+        return Result.success("评分成功");
+    }
+
 
     @SaCheckRole("admin")
     @GetMapping("/admin/list")

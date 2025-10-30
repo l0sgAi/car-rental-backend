@@ -1,7 +1,9 @@
 package com.losgai.sys.service.rental.impl;
 
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.FieldValue;
 import co.elastic.clients.elasticsearch._types.Result;
 import co.elastic.clients.elasticsearch._types.SortOptions;
 import co.elastic.clients.elasticsearch._types.SortOrder;
@@ -9,8 +11,10 @@ import co.elastic.clients.elasticsearch._types.query_dsl.*;
 import co.elastic.clients.elasticsearch.core.*;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import co.elastic.clients.elasticsearch.core.search.Hit;
-import com.losgai.sys.config.RabbitMQAiMessageConfig;
+import com.losgai.sys.common.sys.ESPageResult;
+import com.losgai.sys.config.RabbitMQMessageConfig;
 import com.losgai.sys.dto.CarDocument;
+import com.losgai.sys.dto.CarSearchPageParam;
 import com.losgai.sys.dto.CarSearchParam;
 import com.losgai.sys.entity.carRental.Car;
 import com.losgai.sys.enums.ResultCodeEnum;
@@ -31,10 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -87,6 +89,81 @@ public class CarServiceImpl implements CarService {
     }
 
     @Override
+    public ESPageResult<Car> globalQueryWithPage(CarSearchPageParam carSearchParam) {
+        try {
+            // 设置默认分页大小
+            Integer pageSize = carSearchParam.getPageSize();
+            if (pageSize == null || pageSize <= 0) {
+                pageSize = 12;
+            }
+            // 限制最大页大小，防止一次查询过多
+            if (pageSize > 100) {
+                pageSize = 100;
+            }
+
+            // 构建查询请求（支持search_after）
+            SearchRequest searchRequest = buildSearchRequestWithPage(carSearchParam, pageSize);
+
+            // 执行查询
+            SearchResponse<Car> response = esClient.search(searchRequest, Car.class);
+
+            // 提取结果
+            List<Car> carList = new ArrayList<>();
+            List<Hit<Car>> hits = response.hits().hits();
+
+            for (Hit<Car> hit : hits) {
+                Car car = hit.source();
+                if (car != null) {
+                    carList.add(car);
+                }
+            }
+
+            // 获取最后一条记录的sort值，用于下一页查询
+            List<String> nextSearchAfter = null;
+            if (!hits.isEmpty()) {
+                Hit<Car> lastHit = hits.getLast();
+                if (lastHit.sort() != null && !lastHit.sort().isEmpty()) {
+                    // 将 FieldValue 转换为字符串
+                    nextSearchAfter = lastHit.sort().stream()
+                            .map(fieldValue -> {
+                                // 根据不同类型转换
+                                if (fieldValue.isLong()) {
+                                    return String.valueOf(fieldValue.longValue());
+                                } else if (fieldValue.isDouble()) {
+                                    return String.valueOf(fieldValue.doubleValue());
+                                } else if (fieldValue.isString()) {
+                                    return fieldValue.stringValue();
+                                } else if (fieldValue.isBoolean()) {
+                                    return String.valueOf(fieldValue.booleanValue());
+                                } else {
+                                    // 其他类型，使用toString
+                                    return fieldValue.toString();
+                                }
+                            })
+                            .collect(Collectors.toList());
+                }
+            }
+
+            // 判断是否有下一页：当前页数据量等于pageSize时，可能有下一页
+            boolean hasNext = carList.size() >= pageSize;
+
+            log.info("ES分页查询结果数量: {}, 是否有下一页: {}", carList.size(), hasNext);
+
+            ESPageResult<Car> pageResult = new ESPageResult<>();
+            pageResult.setRecords(carList);
+            pageResult.setSearchAfter(hasNext ? nextSearchAfter : null);
+            pageResult.setHasNext(hasNext);
+            pageResult.setSize(carList.size());
+
+            return pageResult;
+
+        } catch (Exception e) {
+            log.error("ES分页查询失败", e);
+            throw new RuntimeException("查询车辆信息失败", e);
+        }
+    }
+
+    @Override
     public ResultCodeEnum add(Car car) {
         car.setDeleted(0);
         car.setCreateTime(Date.from(Instant.now()));
@@ -94,8 +171,8 @@ public class CarServiceImpl implements CarService {
         carMapper.insert(car);
         if (car.getStatus() == 0) {
             // 通过消息队列，添加到ES中
-            sender.sendCar(RabbitMQAiMessageConfig.EXCHANGE_NAME,
-                    RabbitMQAiMessageConfig.ROUTING_KEY_CAR,
+            sender.sendCar(RabbitMQMessageConfig.EXCHANGE_NAME,
+                    RabbitMQMessageConfig.ROUTING_KEY_CAR,
                     car);
         }
         return ResultCodeEnum.SUCCESS;
@@ -108,13 +185,13 @@ public class CarServiceImpl implements CarService {
         carMapper.updateByPrimaryKeySelective(car);
         if (car.getStatus() == 0) {
             // 通过消息队列，添加到ES中
-            sender.sendCar(RabbitMQAiMessageConfig.EXCHANGE_NAME,
-                    RabbitMQAiMessageConfig.ROUTING_KEY_CAR_UPDATE,
+            sender.sendCar(RabbitMQMessageConfig.EXCHANGE_NAME,
+                    RabbitMQMessageConfig.ROUTING_KEY_CAR_UPDATE,
                     car);
         } else if (car.getStatus() == 1) {
             // 通过消息队列，删除ES中的文档
-            sender.sendCarDelete(RabbitMQAiMessageConfig.EXCHANGE_NAME,
-                    RabbitMQAiMessageConfig.ROUTING_KEY_CAR_DEL,
+            sender.sendCarDelete(RabbitMQMessageConfig.EXCHANGE_NAME,
+                    RabbitMQMessageConfig.ROUTING_KEY_CAR_DEL,
                     car.getId());
         }
         return ResultCodeEnum.SUCCESS;
@@ -128,8 +205,8 @@ public class CarServiceImpl implements CarService {
         carMapper.deleteOrdersByCarId(id);
         carMapper.deleteCommentsByCarId(id);
         // 通过消息队列，删除ES中的文档
-        sender.sendCarDelete(RabbitMQAiMessageConfig.EXCHANGE_NAME,
-                RabbitMQAiMessageConfig.ROUTING_KEY_CAR_DEL,
+        sender.sendCarDelete(RabbitMQMessageConfig.EXCHANGE_NAME,
+                RabbitMQMessageConfig.ROUTING_KEY_CAR_DEL,
                 id);
         return ResultCodeEnum.SUCCESS;
     }
@@ -140,8 +217,8 @@ public class CarServiceImpl implements CarService {
         // 获取所有可租车辆列表
         List<Car> cars = carMapper.getAllCanRentCars();
         // 通过消息队列，添加到ES中
-        sender.sendCars(RabbitMQAiMessageConfig.EXCHANGE_NAME,
-                RabbitMQAiMessageConfig.ROUTING_KEY_CAR_BATCH,
+        sender.sendCars(RabbitMQMessageConfig.EXCHANGE_NAME,
+                RabbitMQMessageConfig.ROUTING_KEY_CAR_BATCH,
                 cars);
         return ResultCodeEnum.SUCCESS;
     }
@@ -283,8 +360,8 @@ public class CarServiceImpl implements CarService {
             carMapper.updateHotScore(carId, hot); // 批量更新热度
             // 同时还要更新ES
             Car car = carMapper.selectByPrimaryKey(carId);
-            sender.sendCar(RabbitMQAiMessageConfig.EXCHANGE_NAME,
-                    RabbitMQAiMessageConfig.ROUTING_KEY_CAR_UPDATE,car);
+            sender.sendCar(RabbitMQMessageConfig.EXCHANGE_NAME,
+                    RabbitMQMessageConfig.ROUTING_KEY_CAR_UPDATE,car);
 
             // 清空刚才同步的热度
             redisTemplate.delete(key);
@@ -437,6 +514,93 @@ public class CarServiceImpl implements CarService {
                     .score(sc -> sc.order(SortOrder.Desc))
             ));
         }
+
+        return sortList;
+    }
+
+    /**
+     * 构建ES查询请求（支持分页）
+     */
+    private SearchRequest buildSearchRequestWithPage(CarSearchPageParam param, Integer pageSize) {
+        return SearchRequest.of(s -> {
+            s.index(EsConstants.INDEX_NAME_CAR_RENTAL)  // "/car" 索引
+                    .query(buildQuery(param))                   // 构建查询条件
+                    .sort(buildSortWithTieBreaker(param))      // 构建排序条件（必须包含唯一字段作为tiebreaker）
+                    .size(pageSize);                           // 分页大小
+
+            // 如果有search_after参数，添加到请求中（用于翻页）
+            if (CollUtil.isNotEmpty(param.getSearchAfter())) {
+                // 将字符串列表转换为FieldValue列表
+                List<FieldValue> searchAfterValues = param.getSearchAfter().stream()
+                        .map(str -> {
+                            // 尝试解析为数字或保持字符串
+                            try {
+                                // 尝试作为Long
+                                if (!str.contains(".")) {
+                                    return FieldValue.of(Long.parseLong(str));
+                                } else {
+                                    // 尝试作为Double
+                                    return FieldValue.of(Double.parseDouble(str));
+                                }
+                            } catch (NumberFormatException e) {
+                                // 如果不是数字，作为字符串
+                                return FieldValue.of(str);
+                            }
+                        })
+                        .collect(Collectors.toList());
+                s.searchAfter(searchAfterValues);
+            }
+            return s;
+        });
+    }
+
+    /**
+     * 构建排序条件（带唯一性保证）
+     * search_after要求排序字段必须有唯一性，通常在最后添加一个唯一字段（如_id或主键）
+     */
+    private List<SortOptions> buildSortWithTieBreaker(CarSearchParam param) {
+        List<SortOptions> sortList = new ArrayList<>();
+
+        // 按平均评分排序
+        if (param.getAvgScore() != null) {
+            sortList.add(buildSortOption("avgScore", param.getAvgScore()));
+        }
+
+        // 按热度排序
+        if (param.getHotScore() != null) {
+            sortList.add(buildSortOption("hotScore", param.getHotScore()));
+        }
+
+        // 按油耗排序
+        if (param.getFuelConsumption() != null) {
+            sortList.add(buildSortOption("fuelConsumption", param.getFuelConsumption()));
+        }
+
+        // 按日租金排序
+        if (param.getDailyRent() != null) {
+            sortList.add(buildSortOption("dailyRent", param.getDailyRent()));
+        }
+
+        // 按座位数排序
+        if (param.getSeat() != null) {
+            sortList.add(buildSortOption("seat", param.getSeat()));
+        }
+
+        // 如果没有任何排序条件，默认按相关性评分排序
+        if (sortList.isEmpty()) {
+            sortList.add(SortOptions.of(s -> s
+                    .score(sc -> sc.order(SortOrder.Desc))
+            ));
+        }
+
+        // 添加唯一字段作为tiebreaker，确保排序的唯一性
+        // 使用id字段
+        sortList.add(SortOptions.of(s -> s
+                .field(f -> f
+                        .field("id")  // 或者使用 "_id" 如果没有id字段
+                        .order(SortOrder.Asc)
+                )
+        ));
 
         return sortList;
     }

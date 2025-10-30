@@ -1,7 +1,6 @@
 package com.losgai.sys.mq.sender;
 
 import com.losgai.sys.dto.RefundDto;
-import com.losgai.sys.entity.ai.AiMessagePair;
 import com.losgai.sys.entity.carRental.Car;
 import com.losgai.sys.entity.carRental.Comment;
 import com.losgai.sys.entity.carRental.RentalOrder;
@@ -16,11 +15,6 @@ import java.util.List;
 public class Sender {
 
     private final RabbitTemplate rabbitTemplate;
-
-    // 发送方法，可以自定义 routingKey 和 exchange
-    public void sendMessage(String exchange, String routingKey, AiMessagePair message) {
-        rabbitTemplate.convertAndSend(exchange, routingKey, message);
-    }
 
     // 发送车辆信息
     public void sendCar(String exchange, String routingKey, Car car) {
