@@ -86,28 +86,6 @@ public class CommentController {
         return Result.page(list, pageInfo.getTotal());
     }
 
-    @SaCheckRole("admin")
-    @GetMapping("/admin/listWithCursor")
-    @Tag(name = "获取所有评论信息", description = "管理员分页获取当前所有评论信息列表")
-    public Result<List<TopCommentVo>> queryWithCursor(
-            @RequestParam(required = false) String keyWord,
-            @RequestParam(defaultValue = "0") String lastDate,
-            @RequestParam(defaultValue = "10") int pageSize) {
-        if(lastDate.equals("0")){
-            lastDate = null;
-        }
-        // 开启分页
-        PageHelper.startCursor("c.create_time",lastDate,pageSize,false);
-        // 执行查询
-        List<TopCommentVo> list = commentService.query(keyWord);
-        // 获取分页信息
-        PageInfo<TopCommentVo> pageInfo = new PageInfo<>(list);
-        // 清理分页
-        PageHelper.clearPage();
-        // 使用自定义分页返回方法
-        return Result.page(list, pageInfo.getTotal());
-    }
-
     @GetMapping("/user/list")
     @Tag(name = "获取车辆评论信息", description = "用户获取当前车辆初始评论信息列表")
     public Result<List<TopCommentVo>> list(@RequestParam Long carId) {
