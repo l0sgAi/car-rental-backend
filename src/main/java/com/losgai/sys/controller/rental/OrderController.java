@@ -92,7 +92,7 @@ public class OrderController {
         if (!Objects.equals(codeEnum.getCode(), ResultCodeEnum.SUCCESS.getCode())) {
             return Result.info(codeEnum.getCode(),codeEnum.getMessage());
         }
-        return Result.success("下单成功");
+        return Result.success("评分成功");
     }
 
 
