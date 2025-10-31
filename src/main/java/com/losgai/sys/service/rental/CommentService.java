@@ -1,5 +1,6 @@
 package com.losgai.sys.service.rental;
 
+import com.losgai.sys.entity.ai.AiConfig;
 import com.losgai.sys.entity.carRental.Comment;
 import com.losgai.sys.enums.ResultCodeEnum;
 import com.losgai.sys.vo.CommentVo;
@@ -26,4 +27,6 @@ public interface CommentService {
     ResultCodeEnum like(Long carId, Long userId);
 
     Map<Long, Long> queryCommentLikeCounts(List<Long> commentIds);
+
+    AiConfig getDefaultConfig();
 }

@@ -31,4 +31,6 @@ public interface AiConfigMapper {
     void updateOtherIsNotDefault(Integer id);
 
     List<AiConfig> selectModelList();
+
+    AiConfig selectDefault();
 }

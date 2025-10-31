@@ -11,6 +11,7 @@ import com.losgai.sys.mapper.AiConfigMapper;
 import com.losgai.sys.mapper.CommentMapper;
 import com.losgai.sys.mapper.RentalOrderMapper;
 import com.losgai.sys.service.rental.CarService;
+import com.losgai.sys.service.rental.CommentService;
 import com.losgai.sys.service.rental.RefundService;
 import com.losgai.sys.util.ModelBuilder;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +37,7 @@ public class Consumer {
 
     private final CommentMapper commentMapper;
 
-    private final AiConfigMapper aiConfigMapper;
+    private final CommentService commentService;
 
     private final ModelBuilder modelBuilder;
 
@@ -145,7 +146,7 @@ public class Consumer {
     public void receiveCommentCensor(Comment message) {
         log.info("[MQ]消费者收到消息：{}", message);
 
-        AiConfig aiConfig = aiConfigMapper.selectByPrimaryKey(1);
+        AiConfig aiConfig = commentService.getDefaultConfig();
         String s = modelBuilder.buildModelWithoutMemo(aiConfig, SYS_CENSOR_PROMPT, message.getContent());
 
         if ("0".equals(s)) {

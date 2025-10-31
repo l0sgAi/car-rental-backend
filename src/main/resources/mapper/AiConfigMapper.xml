@@ -67,6 +67,13 @@
         or model_type = 2
     </select>
 
+    <select id="selectDefault" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List"/>
+        from ai_config
+        where is_default = 1
+    </select>
+
     <delete id="deleteByPrimaryKey" parameterType="java.lang.Long">
         delete
         from ai_config

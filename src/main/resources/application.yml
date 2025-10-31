@@ -35,9 +35,9 @@ spring:
 #      password:
 
 # 日志
-logging:
-  level:
-    root: DEBUG
+#logging:
+#  level:
+#    root: DEBUG
 
 pagehelper:
   helperDialect: mysql

@@ -3,9 +3,11 @@ package com.losgai.sys.service.rental.impl;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.collection.CollUtil;
 import com.losgai.sys.config.RabbitMQMessageConfig;
+import com.losgai.sys.entity.ai.AiConfig;
 import com.losgai.sys.entity.carRental.Comment;
 import com.losgai.sys.entity.carRental.Like;
 import com.losgai.sys.enums.ResultCodeEnum;
+import com.losgai.sys.mapper.AiConfigMapper;
 import com.losgai.sys.mapper.CommentMapper;
 import com.losgai.sys.mapper.LikeMapper;
 import com.losgai.sys.mq.sender.Sender;
@@ -18,6 +20,7 @@ import org.redisson.RedissonMultiLock;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Description;
 import org.springframework.data.redis.connection.StringRedisConnection;
 import org.springframework.data.redis.core.RedisCallback;
@@ -39,6 +42,8 @@ public class CommentServiceImpl implements CommentService {
     private final CommentMapper commentMapper;
 
     private final LikeMapper likeMapper;
+
+    private final AiConfigMapper aiConfigMapper;
 
     private final Sender sender;
 
@@ -259,6 +264,12 @@ public class CommentServiceImpl implements CommentService {
             likeCountMap.put(commentIds.get(i), count);
         }
         return likeCountMap;
+    }
+
+    @Override
+    @Cacheable(value = "aiConfigDefault")
+    public AiConfig getDefaultConfig() {
+        return aiConfigMapper.selectDefault();
     }
 
     @Scheduled(fixedRate = 345234) // 每345秒执行一次点赞数同步
