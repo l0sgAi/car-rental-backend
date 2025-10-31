@@ -40,7 +40,7 @@ public class Consumer {
 
     private final ModelBuilder modelBuilder;
 
-    private final RedisTemplate<String, Object> redisTemplate;
+//    private final RedisTemplate<String, Object> redisTemplate;
 
     private static final String SYS_CENSOR_PROMPT = "You are an AI Content Safety Guardian. Your sole and critical task is to analyze a user-generated text string and classify it based on a strict set of safety policies.\n" +
             "\n" +
@@ -149,12 +149,12 @@ public class Consumer {
         String s = modelBuilder.buildModelWithoutMemo(aiConfig, SYS_CENSOR_PROMPT, message.getContent());
 
         if ("0".equals(s)) {
-            String cacheKey = "commentCache::" + message.getCarId();
+//            String cacheKey = "commentCache::" + message.getCarId();
             try {
                 // 插入数据库
                 commentMapper.insert(message);
                 // 删缓存
-                redisTemplate.delete(cacheKey);
+//                redisTemplate.delete(cacheKey);
             } catch (Exception e) {
                 log.error("[MQ] 审核通过逻辑失败", e);
             }
