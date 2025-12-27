@@ -1,6 +1,6 @@
 package com.losgai.sys.mapper;
 
-import com.losgai.sys.entity.carRental.Comment;
+import com.losgai.sys.dto.CommentDto;
 import com.losgai.sys.vo.CommentVo;
 import com.losgai.sys.vo.TopCommentVo;
 import org.apache.ibatis.annotations.Mapper;
@@ -21,15 +21,15 @@ public interface CommentMapper {
 
     int deleteByPrimaryKey(Long id);
 
-    int insert(Comment record);
+    int insert(CommentDto record);
 
-    int insertSelective(Comment record);
+    int insertSelective(CommentDto record);
 
-    Comment selectByPrimaryKey(Long id);
+    CommentDto selectByPrimaryKey(Long id);
 
-    int updateByPrimaryKeySelective(Comment record);
+    int updateByPrimaryKeySelective(CommentDto record);
 
-    int updateByPrimaryKey(Comment record);
+    int updateByPrimaryKey(CommentDto record);
 
     List<TopCommentVo> query(String keyWord);
 

@@ -1,5 +1,6 @@
-package com.losgai.sys.entity.carRental;
+package com.losgai.sys.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import org.hibernate.validator.constraints.Length;
 
@@ -13,7 +14,7 @@ import java.util.Date;
 * @TableName comment
 */
 @Data
-public class Comment implements Serializable {
+public class CommentDto implements Serializable {
 
     /**
     * ID
@@ -52,6 +53,10 @@ public class Comment implements Serializable {
      * */
     @NotNull(message="[点赞数量]不能为空")
     private Integer likeCount = 0;
+    @Schema(description="近期订单评分")
+    private Integer score;
+    @Schema(description="评论图片URL列表(JSON数组)")
+    private Object extraImages;
     /**
     * 创建时间
     */
@@ -62,10 +67,5 @@ public class Comment implements Serializable {
     */
     @NotNull(message="[更新时间]不能为空")
     private Date updateTime;
-    /**
-    * 逻辑删除：0=正常，1=已删除
-    */
-    @NotNull(message="[逻辑删除：0=正常，1=已删除]不能为空")
-    private Integer deleted;
 
 }

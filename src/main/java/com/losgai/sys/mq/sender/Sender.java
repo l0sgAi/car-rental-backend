@@ -1,8 +1,9 @@
 package com.losgai.sys.mq.sender;
 
 import com.losgai.sys.dto.RefundDto;
+import com.losgai.sys.dto.ReviewDto;
 import com.losgai.sys.entity.carRental.Car;
-import com.losgai.sys.entity.carRental.Comment;
+import com.losgai.sys.dto.CommentDto;
 import com.losgai.sys.entity.carRental.RentalOrder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -32,8 +33,8 @@ public class Sender {
     }
 
     // 发送评论审查任务信息
-    public void sendCarReview(String exchange, String routingKey, Comment comment) {
-        rabbitTemplate.convertAndSend(exchange, routingKey, comment);
+    public void sendCarReview(String exchange, String routingKey, ReviewDto reviewDto ) {
+        rabbitTemplate.convertAndSend(exchange, routingKey, reviewDto);
     }
 
     // 发送订单延迟消费信息

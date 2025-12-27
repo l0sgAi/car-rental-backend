@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.losgai.sys.mapper.CommentDetailMapper">
+
+    <resultMap id="BaseResultMap" type="com.losgai.sys.entity.carRental.CommentDetail">
+            <id property="id" column="id" />
+            <result property="indexId" column="index_id" />
+            <result property="content" column="content" />
+            <result property="likeCount" column="like_count" />
+            <result property="score" column="score" />
+            <result property="extraImages" column="extra_images" />
+            <result property="createTime" column="create_time" />
+            <result property="updateTime" column="update_time" />
+            <result property="deleted" column="deleted" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,index_id,content,like_count,score,extra_images,create_time,
+        update_time,deleted
+    </sql>
+
+    <select id="selectByPrimaryKey" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List" />
+        from comment_detail
+        where  id = #{id} 
+    </select>
+
+    <delete id="deleteByPrimaryKey" parameterType="java.lang.Long">
+        delete from comment_detail
+        where  id = #{id} 
+    </delete>
+    <insert id="insert" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.CommentDetail" useGeneratedKeys="true">
+        insert into comment_detail
+        ( id,comment_detail.index_id,content,like_count,score,extra_images,create_time,
+        update_time,deleted)
+        values (#{id},#{content},#{likeCount},#{score},#{extraImages},#{createTime},
+        #{updateTime},#{deleted})
+    </insert>
+    <insert id="insertSelective" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.CommentDetail" useGeneratedKeys="true">
+        insert into comment_detail
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+                <if test="id != null">id,</if>
+                <if test="indexId != null">index_id,</if>
+                <if test="content != null">content,</if>
+                <if test="likeCount != null">like_count,</if>
+                <if test="score != null">score,</if>
+                <if test="extraImages != null">extra_images,</if>
+                <if test="createTime != null">create_time,</if>
+                <if test="updateTime != null">update_time,</if>
+                <if test="deleted != null">deleted,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+                <if test="id != null">#{id},</if>
+                <if test="indexId != null">#{indexId},</if>
+                <if test="content != null">#{content},</if>
+                <if test="likeCount != null">#{likeCount},</if>
+                <if test="score != null">#{score},</if>
+                <if test="extraImages != null">#{extraImages},</if>
+                <if test="createTime != null">#{createTime},</if>
+                <if test="updateTime != null">#{updateTime},</if>
+                <if test="deleted != null">#{deleted},</if>
+        </trim>
+    </insert>
+    <update id="updateByPrimaryKeySelective" parameterType="com.losgai.sys.entity.carRental.CommentDetail">
+        update comment_detail
+        <set>
+                <if test="content != null">
+                    content = #{content},
+                </if>
+                <if test="indexId != null">
+                    index_id = #{indexId},
+                </if>
+                <if test="likeCount != null">
+                    like_count = #{likeCount},
+                </if>
+                <if test="score != null">
+                    score = #{score},
+                </if>
+                <if test="extraImages != null">
+                    extra_images = #{extraImages},
+                </if>
+                <if test="createTime != null">
+                    create_time = #{createTime},
+                </if>
+                <if test="updateTime != null">
+                    update_time = #{updateTime},
+                </if>
+                <if test="deleted != null">
+                    deleted = #{deleted},
+                </if>
+        </set>
+        where   id = #{id} 
+    </update>
+    <update id="updateByPrimaryKey" parameterType="com.losgai.sys.entity.carRental.CommentDetail">
+        update comment_detail
+        set
+            index_id =  #{indexId},
+            content =  #{content},
+            like_count =  #{likeCount},
+            score =  #{score},
+            extra_images =  #{extraImages},
+            create_time =  #{createTime},
+            update_time =  #{updateTime},
+            deleted =  #{deleted}
+        where   id = #{id} 
+    </update>
+</mapper>

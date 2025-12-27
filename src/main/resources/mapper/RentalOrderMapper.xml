@@ -167,6 +167,16 @@
         and status = 3
     </select>
 
+    <select id="getScoreByUserIdAndCarId" resultType="java.lang.Integer">
+        select rental_order.score from rental_order
+        where user_id = #{userId}
+        and car_id = #{carId}
+        and status = 3
+        and deleted = 0
+        order by update_time desc
+        limit 1
+    </select>
+
     <update id="deleteByPrimaryKey" parameterType="java.lang.Long">
         update rental_order
         set deleted = 1

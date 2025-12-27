@@ -2,13 +2,15 @@ package com.losgai.sys.mq.consumer;
 
 import com.losgai.sys.config.RabbitMQMessageConfig;
 import com.losgai.sys.dto.RefundDto;
+import com.losgai.sys.dto.ReviewDto;
 import com.losgai.sys.entity.ai.AiConfig;
 import com.losgai.sys.entity.carRental.Car;
-import com.losgai.sys.entity.carRental.Comment;
+import com.losgai.sys.entity.carRental.CommentDetail;
+import com.losgai.sys.entity.carRental.CommentIndex;
 import com.losgai.sys.entity.carRental.RentalOrder;
 import com.losgai.sys.global.EsConstants;
-import com.losgai.sys.mapper.AiConfigMapper;
-import com.losgai.sys.mapper.CommentMapper;
+import com.losgai.sys.mapper.CommentDetailMapper;
+import com.losgai.sys.mapper.CommentIndexMapper;
 import com.losgai.sys.mapper.RentalOrderMapper;
 import com.losgai.sys.service.rental.CarService;
 import com.losgai.sys.service.rental.CommentService;
@@ -18,8 +20,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.context.annotation.Description;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.util.List;
@@ -35,7 +37,9 @@ public class Consumer {
 
     private final RentalOrderMapper rentalOrderMapper;
 
-    private final CommentMapper commentMapper;
+    private final CommentIndexMapper commentIndexMapper;
+
+    private final CommentDetailMapper commentDetailMapper;
 
     private final CommentService commentService;
 
@@ -143,21 +147,26 @@ public class Consumer {
      * */
     @RabbitListener(queues = RabbitMQMessageConfig.QUEUE_NAME_COMMENT_CENSOR, concurrency = "3-10")
     @Description("审核评论")
-    public void receiveCommentCensor(Comment message) {
-        log.info("[MQ]消费者收到消息：{}", message);
+    @Transactional
+    public void receiveCommentCensor(ReviewDto reviewDto) {
+        log.info("[MQ]消费者收到消息：{}", reviewDto);
 
         AiConfig aiConfig = commentService.getDefaultConfig();
-        String s = modelBuilder.buildModelWithoutMemo(aiConfig, SYS_CENSOR_PROMPT, message.getContent());
+        String s = modelBuilder.buildModelWithoutMemo(aiConfig, SYS_CENSOR_PROMPT, reviewDto.getContent());
 
         if ("0".equals(s)) {
-//            String cacheKey = "commentCache::" + message.getCarId();
             try {
-                // 插入数据库
-                commentMapper.insert(message);
-                // 删缓存
-//                redisTemplate.delete(cacheKey);
+                // 审核通过，更新评论显示状态
+                CommentIndex commentIndex = new CommentIndex();
+                commentIndex.setId(reviewDto.getIndexId());
+                commentIndex.setDeleted(0);
+                commentIndexMapper.updateByPrimaryKeySelective(commentIndex);
+                CommentDetail commentDetail = new CommentDetail();
+                commentDetail.setId(reviewDto.getDetailId());
+                commentDetail.setDeleted(0);
+                commentDetailMapper.updateByPrimaryKeySelective(commentDetail);
             } catch (Exception e) {
-                log.error("[MQ] 审核通过逻辑失败", e);
+                log.error("[MQ：用户发送评论] 插入数据库失败", e);
             }
         }
     }

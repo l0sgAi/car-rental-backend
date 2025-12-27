@@ -1,0 +1,28 @@
+package com.losgai.sys.mapper;
+
+
+import com.losgai.sys.entity.carRental.CommentIndex;
+import org.apache.ibatis.annotations.Mapper;
+
+/**
+* @author miesme
+* @description 针对表【comment_index(评论索引表)】的数据库操作Mapper
+* @createDate 2025-12-27 13:46:08
+* @Entity generator.domain.CommentIndex
+*/
+@Mapper
+public interface CommentIndexMapper {
+
+    int deleteByPrimaryKey(Long id);
+
+    int insert(CommentIndex record);
+
+    int insertSelective(CommentIndex record);
+
+    CommentIndex selectByPrimaryKey(Long id);
+
+    int updateByPrimaryKeySelective(CommentIndex record);
+
+    int updateByPrimaryKey(CommentIndex record);
+
+}

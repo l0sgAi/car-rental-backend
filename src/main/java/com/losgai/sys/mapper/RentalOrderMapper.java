@@ -66,4 +66,5 @@ public interface RentalOrderMapper {
 
     List<OrderScoreDto> getScoredList();
 
+    Integer getScoreByUserIdAndCarId(Long userId, Long carId);
 }

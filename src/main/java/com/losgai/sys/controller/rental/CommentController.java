@@ -5,7 +5,8 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.losgai.sys.common.sys.Result;
-import com.losgai.sys.entity.carRental.Comment;
+import com.losgai.sys.dto.CommentDto;
+import com.losgai.sys.entity.carRental.CommentIndex;
 import com.losgai.sys.enums.ResultCodeEnum;
 import com.losgai.sys.service.rental.CommentService;
 import com.losgai.sys.vo.CommentVo;
@@ -16,11 +17,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -36,9 +32,9 @@ public class CommentController {
     @SaCheckRole("admin")
     @PostMapping("/admin/add")
     @Tag(name = "新增评论",description = "管理员新增/回复评论")
-    public Result<String> add(@RequestBody @Valid Comment comment) {
+    public Result<String> add(@RequestBody @Valid CommentDto commentDto) {
         Long userId = StpUtil.getLoginIdAsLong();
-        ResultCodeEnum codeEnum = commentService.add(comment,userId);
+        ResultCodeEnum codeEnum = commentService.add(commentDto,userId);
         if (!Objects.equals(codeEnum.getCode(), ResultCodeEnum.SUCCESS.getCode())) {
             return Result.info(codeEnum.getCode(),codeEnum.getMessage());
         }
@@ -47,7 +43,7 @@ public class CommentController {
 
     @PostMapping("/user/add")
     @Tag(name = "新增评论",description = "用户新增/回复评论")
-    public Result<String> userAdd(@RequestBody @Valid Comment comment) {
+    public Result<String> userAdd(@RequestBody @Valid CommentDto comment) {
         Long userId = StpUtil.getLoginIdAsLong();
         ResultCodeEnum codeEnum = commentService.userAdd(comment, userId);
         if (!Objects.equals(codeEnum.getCode(), ResultCodeEnum.SUCCESS.getCode())) {

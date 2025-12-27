@@ -104,7 +104,7 @@ CREATE TABLE `rental_order`
   COLLATE = utf8mb4_0900_ai_ci COMMENT ='订单信息表';
 
 -- 评论表
-CREATE TABLE `comment`
+CREATE TABLE `commentDto`
 (
     `id`                bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
     `user_id`           bigint unsigned NOT NULL COMMENT '对应用户ID',
@@ -141,3 +141,4 @@ CREATE TABLE `like`
 -- 添加唯一索引
 ALTER TABLE `like`
     ADD UNIQUE KEY uk_user_comment (user_id, comment_id);
+

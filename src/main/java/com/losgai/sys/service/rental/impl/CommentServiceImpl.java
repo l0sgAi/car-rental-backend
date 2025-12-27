@@ -3,13 +3,14 @@ package com.losgai.sys.service.rental.impl;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.collection.CollUtil;
 import com.losgai.sys.config.RabbitMQMessageConfig;
+import com.losgai.sys.dto.ReviewDto;
 import com.losgai.sys.entity.ai.AiConfig;
-import com.losgai.sys.entity.carRental.Comment;
+import com.losgai.sys.dto.CommentDto;
+import com.losgai.sys.entity.carRental.CommentDetail;
+import com.losgai.sys.entity.carRental.CommentIndex;
 import com.losgai.sys.entity.carRental.Like;
 import com.losgai.sys.enums.ResultCodeEnum;
-import com.losgai.sys.mapper.AiConfigMapper;
-import com.losgai.sys.mapper.CommentMapper;
-import com.losgai.sys.mapper.LikeMapper;
+import com.losgai.sys.mapper.*;
 import com.losgai.sys.mq.sender.Sender;
 import com.losgai.sys.service.rental.CommentService;
 import com.losgai.sys.vo.CommentVo;
@@ -19,7 +20,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.redisson.RedissonMultiLock;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Description;
 import org.springframework.data.redis.connection.StringRedisConnection;
@@ -28,6 +28,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SetOperations;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.*;
@@ -45,49 +46,83 @@ public class CommentServiceImpl implements CommentService {
 
     private final AiConfigMapper aiConfigMapper;
 
+    private final CommentIndexMapper commentIndexMapper;
+
+    private final CommentDetailMapper commentDetailMapper;
+
+    private final RentalOrderMapper rentalOrderMapper;
+
     private final Sender sender;
 
     private final RedisTemplate<String, Object> redisTemplate;
 
     private final RedissonClient redissonClient;
 
+    // 点赞缓存key前缀
     private final String LIKE_KEY_PREFIX = "comment:like:";
+    // 需要向数据库同步点赞的评论数据id集合
     private final String LIKE_SYNC_SET = "comment:like:sync";
-    private final String COMMENT_CACHE_KEY_PREFIX = "commentCache::";
-
+    // 评论缓存key前缀
+    private final String COMMENT_CACHE_KEY_PREFIX = "comment:content::";
+    // 点赞数定时同步的分布式锁前缀
     private static final String LOCK_KEY_PREFIX_COMMENT_LIKE = "lock:comment:like:";
 
     @Override
 //    @CacheEvict(value = "commentCache", key = "#comment.carId")
-    public ResultCodeEnum add(Comment comment, Long userId) {
-        comment.setUserId(userId);
-        comment.setCreateTime(Date.from(Instant.now()));
-        comment.setUpdateTime(Date.from(Instant.now()));
-        comment.setDeleted(0);
-        commentMapper.insert(comment);
+    public ResultCodeEnum add(CommentDto commentDto, Long userId) {
+        commentDto.setUserId(userId);
+        commentDto.setCreateTime(Date.from(Instant.now()));
+        commentDto.setUpdateTime(Date.from(Instant.now()));
+        commentMapper.insert(commentDto);
         return ResultCodeEnum.SUCCESS;
     }
 
     @Override
-    public ResultCodeEnum userAdd(Comment comment, Long userId) {
+    @Transactional
+    public ResultCodeEnum userAdd(CommentDto comment, Long userId) {
         // userId后端检查
         comment.setUserId(userId);
         comment.setCreateTime(Date.from(Instant.now()));
         comment.setUpdateTime(Date.from(Instant.now()));
-        comment.setDeleted(0);
-        // 这里的缓存清除在消息队列消费者中执行
+        // 构建索引
+        CommentIndex commentIndex = new CommentIndex();
+        commentIndex.setUserId(userId);
+        commentIndex.setCarId(comment.getCarId());
+        commentIndex.setParentCommentId(comment.getParentCommentId());
+        commentIndex.setFollowCommentId(comment.getFollowCommentId());
+        commentIndex.setCreateTime(comment.getCreateTime());
+        commentIndex.setUpdateTime(comment.getUpdateTime());
+        // 审核结束前都置为1已经删除，不做展示
+        commentIndex.setDeleted(1);
+        // 构建详情
+        CommentDetail commentDetail = new CommentDetail();
+        commentDetail.setIndexId(commentIndex.getId());
+        commentDetail.setContent(comment.getContent());
+        commentDetail.setLikeCount(0);
+        // score从用户订单中查询
+        Integer score = rentalOrderMapper.getScoreByUserIdAndCarId(userId, comment.getCarId());
+        commentDetail.setScore(score);
+        commentDetail.setExtraImages(comment.getExtraImages());
+        commentDetail.setCreateTime(comment.getCreateTime());
+        commentDetail.setUpdateTime(comment.getUpdateTime());
+        // 审核结束前都置为1已经删除，不做展示
+        commentDetail.setDeleted(1);
+        // 执行插入
+        commentIndexMapper.insert(commentIndex);
+        commentDetailMapper.insert(commentDetail);
+        // 发给消息队列执行审核
         sender.sendCarReview(RabbitMQMessageConfig.EXCHANGE_NAME,
                 RabbitMQMessageConfig.ROUTING_KEY_COMMENT_CENSOR,
-                comment);
+                new ReviewDto(commentIndex.getId(), commentDetail.getId(),commentDetail.getContent()));
         return ResultCodeEnum.SUCCESS;
     }
 
     @Override
     public ResultCodeEnum delete(Long id) {
-        Comment comment = commentMapper.selectByPrimaryKey(id);
-        if (comment != null) {
+        CommentDto commentDto = commentMapper.selectByPrimaryKey(id);
+        if (commentDto != null) {
             // 删除缓存
-            redisTemplate.delete(COMMENT_CACHE_KEY_PREFIX + comment.getCarId());
+            redisTemplate.delete(COMMENT_CACHE_KEY_PREFIX + commentDto.getCarId());
         }
         commentMapper.deleteByPrimaryKey(id);
         return ResultCodeEnum.SUCCESS;
@@ -241,6 +276,7 @@ public class CommentServiceImpl implements CommentService {
 
     }
 
+    @Description("获取一个评论列表id对应的点赞数")
     public Map<Long, Long> queryCommentLikeCounts(List<Long> commentIds) {
         if (CollUtil.isEmpty(commentIds)) {
             return Collections.emptyMap();
@@ -272,7 +308,8 @@ public class CommentServiceImpl implements CommentService {
         return aiConfigMapper.selectDefault();
     }
 
-    @Scheduled(fixedRate = 345234) // 每345秒执行一次点赞数同步
+    @Scheduled(fixedRate = 345234)
+    @Description("定时任务-每345秒执行一次点赞数同步到数据库")
     public void syncLikeToDB() {
         // 获取待同步的评论Ids
         Set<Long> commentIds = Objects.requireNonNull(redisTemplate.opsForSet()
