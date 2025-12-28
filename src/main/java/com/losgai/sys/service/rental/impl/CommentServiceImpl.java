@@ -362,10 +362,7 @@ public class CommentServiceImpl implements CommentService {
                     Long dbCount = likeMapper.countByCommentId(commentId);
                     dbCount = dbCount == null ? 0L : dbCount;
 
-                    // 2. 设置 Redis Count
-                    redisTemplate.opsForValue().set(countKey, dbCount, 24, TimeUnit.HOURS); // 加上过期时间防止死数据
-//                    redisTemplate.opsForValue().set(countKey, dbCount);
-                    // 3. 查 DB 最新点赞用户列表 (Limit 5000)
+                    // 4. 查 DB 最新点赞用户列表 (Limit 5000)
                     List<Like> recentLikes = likeMapper.selectLatestLikes(commentId, LIKE_LIMIT);
 
                     if (CollUtil.isNotEmpty(recentLikes)) {
@@ -382,6 +379,9 @@ public class CommentServiceImpl implements CommentService {
                         redisTemplate.opsForZSet().add(zsetKey, -1L, 0); // 占位
                         redisTemplate.expire(zsetKey, 15, TimeUnit.MINUTES);
                     }
+                    // 3. 设置 Redis Count
+                    redisTemplate.opsForValue().set(countKey, dbCount, 24, TimeUnit.HOURS); // 加上过期时间防止死数据
+
                 } finally {
                     lock.unlock();
                 }
@@ -425,6 +425,7 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Scheduled(fixedDelay = 5000) // 建议改用 fixedDelay，跑完上一轮再等5秒，防止积压
+    @Transactional
     public void syncLikeToDB() {
         // 1. 每次只取 50-100 个需要同步的 ID，避免一次处理太多导致 OOM
         // 使用 SPOP 弹出并移除，保证原子性，也不需要再手动删除了
@@ -469,7 +470,10 @@ public class CommentServiceImpl implements CommentService {
             if (CollUtil.isNotEmpty(redisZSetMembers)) {
                 for (String uidStr : redisZSetMembers) {
                     // 构造对象，后续批量 INSERT IGNORE
-                    batchInsertList.add(new Like(null, Long.valueOf(uidStr), cid));
+                    long uid = Long.parseLong(uidStr);
+                    if (uid > 0){
+                        batchInsertList.add(new Like(null, uid, cid));
+                    }
                 }
             }
 
@@ -497,7 +501,6 @@ public class CommentServiceImpl implements CommentService {
 
         // 6. 执行数据库操作
         if (CollUtil.isNotEmpty(batchInsertList)) {
-            // XML SQL: INSERT IGNORE INTO ... VALUES ...
             // 利用数据库唯一索引(comment_id, user_id) 避免重复插入
             likeMapper.batchInsert(batchInsertList);
         }
