@@ -8,7 +8,6 @@
             <id property="id" column="id" />
             <result property="indexId" column="index_id" />
             <result property="content" column="content" />
-            <result property="likeCount" column="like_count" />
             <result property="score" column="score" />
             <result property="extraImages" column="extra_images" />
             <result property="createTime" column="create_time" />
@@ -17,7 +16,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,index_id,content,like_count,score,extra_images,create_time,
+        id,index_id,content,score,extra_images,create_time,
         update_time,deleted
     </sql>
 
@@ -26,6 +25,37 @@
         <include refid="Base_Column_List" />
         from comment_detail
         where  id = #{id} 
+    </select>
+
+    <select id="query" resultType="com.losgai.sys.vo.TopCommentVo">
+        SELECT
+        ci.id              AS id,
+        ci.user_id         AS userId,
+        u.username         AS username,
+        u.avatar_url       AS avatar,
+        ci.car_id          AS carId,
+        c.name             AS carName,
+        u.role             AS userRole,
+        cd.score           AS score,
+        ci.parent_comment_id AS parentCommentId,
+        ci.follow_comment_id AS followCommentId,
+        cd.content         AS content,
+        ci.like_count      AS likeCount,
+        ci.create_time     AS createTime
+        FROM comment_index ci
+        INNER JOIN comment_detail cd ON cd.index_id = ci.id
+        LEFT JOIN user u ON ci.user_id = u.id
+        LEFT JOIN car c ON ci.car_id = c.id
+        <where>
+            <if test="keyWord != null and keyWord != ''">
+                AND (
+                cd.content LIKE concat('%', #{keyWord}, '%')
+                OR u.username LIKE concat('%', #{keyWord}, '%')
+                OR c.name LIKE concat('%', #{keyWord}, '%')
+                )
+            </if>
+        </where>
+        ORDER BY ci.create_time DESC
     </select>
 
     <delete id="deleteByPrimaryKey" parameterType="java.lang.Long">

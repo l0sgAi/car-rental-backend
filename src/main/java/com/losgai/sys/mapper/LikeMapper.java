@@ -32,9 +32,15 @@ public interface LikeMapper {
 
     void batchInsert(List<Like> newLikes);
 
-    void deleteByCommentId(Long commentId);
+    int deleteByCommentId(Long commentId,Long userId);
 
     List<Like> listActiveLikesByCommentIds(@Param("commentIds") Set<Long> commentIds);
 
     void batchSoftDelete(List<Like> likesToSoftDelete);
+
+    Long countByCommentIdAndUserId(Long commentId);
+
+    Long countByCommentId(Long commentId);
+
+    List<Like> selectLatestLikes(Long commentId, Integer likeLimit);
 }

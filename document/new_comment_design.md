@@ -65,6 +65,7 @@ CREATE TABLE `comment_index`
     `car_id`            bigint unsigned NOT NULL COMMENT '对应车辆ID',
     `parent_comment_id` bigint unsigned NOT NULL DEFAULT '0' COMMENT '父级评论id,默认0即为顶级评论',
     `follow_comment_id` bigint unsigned NOT NULL DEFAULT '0' COMMENT '回复评论id,默认0即非回复评论',
+    `hot_score`         int unsigned NOT NULL DEFAULT '0' COMMENT '热度-目前只用点赞数实现',
 
     `create_time`       datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time`       datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -87,8 +88,8 @@ CREATE TABLE `comment_index`
 CREATE TABLE `comment_detail`
 (
     `id`                bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
+    `index_id`          bigint unsigned NOT NULL COMMENT '对应索引ID',
     `content`           varchar(1024) NOT NULL COMMENT '评论内容',
-    `like_count`        int unsigned NOT NULL DEFAULT '0' COMMENT '点赞数',
     `score`             int unsigned DEFAULT NULL COMMENT '近期订单评分',
     `extra_images`      JSON DEFAULT NULL COMMENT '评论图片URL列表(JSON数组)',
     `create_time`       datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -119,13 +120,13 @@ CREATE TABLE `rental_order`
  `user_id` bigint unsigned NOT NULL COMMENT '对应用户ID',
  `car_id` bigint unsigned NOT NULL COMMENT '对应车辆ID',
  `trade_no` varchar(255) NOT NULL COMMENT '支付宝订单编号', 
-`start_rental_time` date NOT NULL COMMENT '车辆起租日期',
+ `start_rental_time` date NOT NULL COMMENT '车辆起租日期',
  `end_rental_time` date NOT NULL COMMENT '车辆还车日期',
  `price` decimal(10, 2) NOT NULL COMMENT '订单总额(人民币元)',
  `address` varchar(255) NOT NULL COMMENT '取还车地址', 
-`status` tinyint NOT NULL DEFAULT '0' COMMENT '订单状态：0=新建/待支付，1=已支付，2=租赁中，3=已完成，4=已取消 5=待退款 6=已退款',
+ `status` tinyint NOT NULL DEFAULT '0' COMMENT '订单状态：0=新建/待支付，1=已支付，2=租赁中，3=已完成，4=已取消 5=待退款 6=已退款',
  `score` int DEFAULT NULL COMMENT '订单评分0-10，计入车辆均分', 
-`create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+ `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
  `deleted` tinyint NOT NULL DEFAULT '0' COMMENT '逻辑删除：0=正常，1=已删除',
  PRIMARY KEY (`id`)

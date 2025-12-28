@@ -56,7 +56,7 @@ public class CommentDto implements Serializable {
     @Schema(description="近期订单评分")
     private Integer score;
     @Schema(description="评论图片URL列表(JSON数组)")
-    private Object extraImages;
+    private String extraImages;
     /**
     * 创建时间
     */

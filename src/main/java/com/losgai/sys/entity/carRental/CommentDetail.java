@@ -14,12 +14,10 @@ public class CommentDetail {
     private Long indexId;
     @Schema(description="评论内容")
     private String content;
-    @Schema(description="点赞数")
-    private Integer likeCount;
     @Schema(description="近期订单评分")
     private Integer score;
     @Schema(description="评论图片URL列表(JSON数组)")
-    private Object extraImages;
+    private String extraImages;
     @Schema(description="创建时间")
     private Date createTime;
     @Schema(description="更新时间")

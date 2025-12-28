@@ -24,7 +24,7 @@
     <select id="selectByPrimaryKey" parameterType="java.lang.Long" resultMap="BaseResultMap">
         select
         <include refid="Base_Column_List" />
-        from commentDto
+        from comment
         where  id = #{id} 
     </select>
 
@@ -42,7 +42,7 @@
         c.content AS content,
         c.like_count AS likeCount,
         c.create_time AS createTime
-        FROM commentDto c
+        FROM comment c
         LEFT JOIN user u ON c.user_id = u.id
         LEFT JOIN car c2 ON c.car_id = c2.id
         LEFT JOIN (SELECT user_id, car_id, score
@@ -79,7 +79,7 @@
                c.content            AS content,
                c.like_count         AS likeCount,
                c.create_time        AS createTime
-        FROM commentDto c
+        FROM comment c
                  LEFT JOIN user u ON c.user_id = u.id
                  LEFT JOIN (SELECT user_id, car_id, score
                             FROM (SELECT user_id,
@@ -111,7 +111,7 @@
                c.content            AS content,
                c.like_count         AS likeCount,
                c.create_time        AS createTime
-        FROM commentDto c
+        FROM comment c
                  LEFT JOIN user u ON c.user_id = u.id
                  LEFT JOIN (SELECT user_id, car_id, score
                             FROM (SELECT user_id,
@@ -145,7 +145,7 @@
         c.like_count AS likeCount,
         c.create_time AS createTime,
         ROW_NUMBER() OVER (PARTITION BY c.parent_comment_id ORDER BY c.like_count DESC) AS rn
-        FROM commentDto c
+        FROM comment c
         LEFT JOIN user u ON c.user_id = u.id
         WHERE c.deleted = 0
         AND c.parent_comment_id IN
@@ -169,7 +169,7 @@
         c.content AS content,
         c.like_count AS likeCount,
         c.create_time AS createTime
-        FROM commentDto c
+        FROM comment c
         LEFT JOIN user u ON c.user_id = u.id
         WHERE c.deleted = 0
         AND c.parent_comment_id = #{id}
@@ -188,7 +188,7 @@
         c.content AS content,
         c.like_count AS likeCount,
         c.create_time AS createTime
-        FROM commentDto c
+        FROM comment c
         LEFT JOIN user u ON c.user_id = u.id
         WHERE c.deleted = 0
         AND c.parent_comment_id = #{id}
@@ -197,7 +197,7 @@
     </select>
 
     <select id="queryCarIdsByCommentIds" resultType="java.lang.Long">
-        select car_id from commentDto
+        select car_id from comment
         where id in
         <foreach item="item" collection="commentIds" separator="," open="(" close=")">
             #{item}
@@ -207,7 +207,7 @@
     </select>
 
     <update id="deleteByPrimaryKey" parameterType="java.lang.Long">
-        update CARDB.commentDto set
+        update CARDB.comment set
         deleted = 1
         where id = #{id}
         or parent_comment_id = #{id}
@@ -215,7 +215,7 @@
     </update>
 
     <insert id="insert" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.dto.CommentDto" useGeneratedKeys="true">
-        insert into commentDto
+        insert into comment
         ( id,user_id,car_id,parent_comment_id,follow_comment_id,content,like_count,
         create_time,update_time,deleted)
         values (#{id},#{userId},#{carId},#{parentCommentId},#{followCommentId},#{content},#{likeCount},
@@ -223,7 +223,7 @@
     </insert>
 
     <insert id="insertSelective" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.dto.CommentDto" useGeneratedKeys="true">
-        insert into commentDto
+        insert into comment
         <trim prefix="(" suffix=")" suffixOverrides=",">
                 <if test="id != null">id,</if>
                 <if test="userId != null">user_id,</if>
@@ -249,14 +249,14 @@
     </insert>
 
     <update id="syncLikeCount">
-        UPDATE commentDto
+        UPDATE comment
         SET like_count = #{likeCount}
         WHERE id = #{commentId}
         AND deleted = 0
     </update>
 
     <update id="updateByPrimaryKeySelective" parameterType="com.losgai.sys.dto.CommentDto">
-        update commentDto
+        update comment
         <set>
                 <if test="userId != null">
                     user_id = #{userId},
@@ -287,7 +287,7 @@
     </update>
 
     <update id="updateByPrimaryKey" parameterType="com.losgai.sys.dto.CommentDto">
-        update commentDto
+        update comment
         set 
             user_id =  #{userId},
             car_id =  #{carId},
@@ -301,7 +301,7 @@
     </update>
 
     <update id="batchUpdateLikeCount">
-        UPDATE commentDto
+        UPDATE comment
         SET like_count = CASE id
         <foreach collection="commentLikeCounts" index="key" item="value">
             WHEN #{key} THEN #{value}

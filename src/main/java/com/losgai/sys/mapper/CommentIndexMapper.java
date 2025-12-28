@@ -4,6 +4,8 @@ package com.losgai.sys.mapper;
 import com.losgai.sys.entity.carRental.CommentIndex;
 import org.apache.ibatis.annotations.Mapper;
 
+import java.util.List;
+
 /**
 * @author miesme
 * @description 针对表【comment_index(评论索引表)】的数据库操作Mapper
@@ -25,4 +27,5 @@ public interface CommentIndexMapper {
 
     int updateByPrimaryKey(CommentIndex record);
 
+    void batchUpdateLikeCountMap(List<CommentIndex> list);
 }

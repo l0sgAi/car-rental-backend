@@ -1,6 +1,7 @@
 package com.losgai.sys.mapper;
 
 import com.losgai.sys.dto.CommentDto;
+import com.losgai.sys.entity.carRental.CommentIndex;
 import com.losgai.sys.vo.CommentVo;
 import com.losgai.sys.vo.TopCommentVo;
 import org.apache.ibatis.annotations.Mapper;
@@ -48,4 +49,5 @@ public interface CommentMapper {
     Set<Long> queryCarIdsByCommentIds(Set<Long> commentIds);
 
     void batchUpdateLikeCount(@Param("commentLikeCounts") Map<Long, Long> commentLikeCounts);
+
 }

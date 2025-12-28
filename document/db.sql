@@ -103,26 +103,44 @@ CREATE TABLE `rental_order`
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_0900_ai_ci COMMENT ='订单信息表';
 
--- 评论表
-CREATE TABLE `commentDto`
+-- 评论索引表
+CREATE TABLE `comment_index`
 (
     `id`                bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
     `user_id`           bigint unsigned NOT NULL COMMENT '对应用户ID',
     `car_id`            bigint unsigned NOT NULL COMMENT '对应车辆ID',
     `parent_comment_id` bigint unsigned NOT NULL DEFAULT '0' COMMENT '父级评论id,默认0即为顶级评论',
     `follow_comment_id` bigint unsigned NOT NULL DEFAULT '0' COMMENT '回复评论id,默认0即非回复评论',
+    `hot_score`         int unsigned NOT NULL DEFAULT '0' COMMENT '热度-目前只用点赞数实现',
 
-    `content`           varchar(1024)   NOT NULL COMMENT '评论内容',
-    `like_count`        int unsigned    NOT NULL DEFAULT '0' COMMENT '点赞数',
-
-    `create_time`       datetime        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `update_time`       datetime        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `deleted`           tinyint         NOT NULL DEFAULT '0' COMMENT '逻辑删除：0=正常，1=已删除',
+    `create_time`       datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time`       datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `deleted`           tinyint NOT NULL DEFAULT '0' COMMENT '逻辑删除：0=正常，1=已删除',
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB
   AUTO_INCREMENT = 1
   DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_0900_ai_ci COMMENT ='评论信息表';
+  COLLATE = utf8mb4_0900_ai_ci COMMENT ='评论索引表';
+
+-- 推荐索引，必须包含 car_id 用于分片路由，hot_score 用于排序，create_time排序补充
+ALTER TABLE `comment_index` ADD INDEX `idx_car_hot` (`car_id`, `parent_comment_id`, `hot_score` DESC, `create_time` DESC);
+
+-- 评论详情表
+CREATE TABLE `comment_detail`
+(
+    `id`                bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
+    `index_id`          bigint unsigned NOT NULL COMMENT '对应索引ID',
+    `content`           varchar(1024) NOT NULL COMMENT '评论内容',
+    `score`             int unsigned DEFAULT NULL COMMENT '近期订单评分',
+    `extra_images`      JSON DEFAULT NULL COMMENT '评论图片URL列表(JSON数组)',
+    `create_time`       datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time`       datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `deleted`           tinyint NOT NULL DEFAULT '0' COMMENT '逻辑删除：0=正常，1=已删除',
+    PRIMARY KEY (`id`)
+) ENGINE = InnoDB
+  AUTO_INCREMENT = 1
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_0900_ai_ci COMMENT ='评论详情表';
 
 -- 点赞表
 CREATE TABLE `like`

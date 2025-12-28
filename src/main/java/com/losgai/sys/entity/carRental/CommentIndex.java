@@ -34,6 +34,8 @@ public class CommentIndex {
      */
     @NotNull(message="[回复评论id,默认0即非回复评论]不能为空")
     private Long followCommentId;
+    @Schema(description = "热度评分-当前即为点赞数")
+    private Integer hotScore;
 
     @Schema(description="创建时间")
     private Date createTime;

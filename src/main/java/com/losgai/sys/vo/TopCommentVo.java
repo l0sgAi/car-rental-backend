@@ -1,5 +1,6 @@
 package com.losgai.sys.vo;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.util.Date;
@@ -69,6 +70,9 @@ public class TopCommentVo {
      * 评分(只有租户有)
      */
     private Integer score;
+
+    @Schema(description="评论图片URL列表(JSON数组)")
+    private String extraImages;
     
     /**
      * 创建时间
