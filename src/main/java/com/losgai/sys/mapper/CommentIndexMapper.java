@@ -1,6 +1,7 @@
 package com.losgai.sys.mapper;
 
 
+import com.losgai.sys.dto.CommentHeatDto;
 import com.losgai.sys.entity.carRental.CommentIndex;
 import org.apache.ibatis.annotations.Mapper;
 
@@ -28,4 +29,6 @@ public interface CommentIndexMapper {
     int updateByPrimaryKey(CommentIndex record);
 
     void batchUpdateLikeCountMap(List<CommentIndex> list);
+
+    void batchUpdateHeat(List<CommentHeatDto> heatDtoList);
 }

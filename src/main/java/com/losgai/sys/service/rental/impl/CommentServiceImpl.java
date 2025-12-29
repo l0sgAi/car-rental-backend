@@ -2,7 +2,6 @@ package com.losgai.sys.service.rental.impl;
 
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.ObjectUtil;
 import com.losgai.sys.config.RabbitMQMessageConfig;
 import com.losgai.sys.dto.ReviewDto;
 import com.losgai.sys.entity.ai.AiConfig;
@@ -16,16 +15,17 @@ import com.losgai.sys.mq.sender.Sender;
 import com.losgai.sys.service.rental.CommentService;
 import com.losgai.sys.vo.CommentVo;
 import com.losgai.sys.vo.TopCommentVo;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.RedissonMultiLock;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Description;
-import org.springframework.dao.DuplicateKeyException;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.connection.StringRedisConnection;
 import org.springframework.data.redis.core.*;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,20 +58,31 @@ public class CommentServiceImpl implements CommentService {
 
     private final RedissonClient redissonClient;
 
-    // 点赞列表Zset前缀
-    private final String LIKE_KEY_PREFIX = "comment:like:list";
+    // 点赞列表set前缀
+    public static final String USER_LIKE_KEY_PREFIX = "user:like:list";
     // 点赞计数缓存key前缀
-    private final String LIKE_COUNT_KEY_PREFIX = "comment:like:count:";
+    public static final String LIKE_COUNT_KEY_PREFIX = "comment:like:count:";
     // 需要向数据库同步点赞的评论数据id集合
-    private final String LIKE_SYNC_SET = "comment:like:sync";
+    public static final String LIKE_SYNC_SET = "comment:like:sync";
     // 评论缓存key前缀
-    private final String COMMENT_CACHE_KEY_PREFIX = "comment:content::";
-    // 点赞数定时同步的分布式锁前缀
-    private static final String LOCK_KEY_PREFIX_COMMENT_LIKE = "lock:comment:like:";
+    public static final String COMMENT_CACHE_KEY_PREFIX = "comment:content::";
+    // 点赞数的分布式锁前缀
+    public static final String LOCK_KEY_PREFIX_COMMENT_LIKE = "lock:comment:like:";
+    // 用户点赞列表的分布式锁前缀
+    public static final String LOCK_KEY_PREFIX_USER_LIKE = "lock:comment:like:";
     // Unlike Log
-    private static final String UNLIKE_LOG = "UNLIKE_LOG:";
+    public static final String UNLIKE_LOG = "UNLIKE_LOG:";
     // 点赞上限
-    private static final Integer LIKE_LIMIT = 5000;
+    public static final Integer LIKE_LIMIT = 5000;
+
+    private DefaultRedisScript<Long> likeScript;
+
+    @PostConstruct
+    public void init() {
+        likeScript = new DefaultRedisScript<>();
+        likeScript.setLocation(new ClassPathResource("scripts/like_script.lua"));
+        likeScript.setResultType(Long.class);
+    }
 
     @Override
 //    @CacheEvict(value = "commentCache", key = "#comment.carId")
@@ -198,7 +209,6 @@ public class CommentServiceImpl implements CommentService {
         topComments.forEach(top ->
                 top.setChildren(childrenGroup.getOrDefault(top.getId(), Collections.emptyList()))
         );
-
         return topComments;
     }
 
@@ -259,128 +269,93 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
-    @Description("点赞/取消点赞")
+    @Description("点赞/取消点赞 (Lua原子版)")
     public ResultCodeEnum like(Long commentId, Long userId) {
         if (commentId == null || userId == null) {
             return ResultCodeEnum.DATA_ERROR;
         }
 
-        String zsetKey = LIKE_KEY_PREFIX + commentId;
+        String userSetKey = USER_LIKE_KEY_PREFIX + userId;
         String countKey = LIKE_COUNT_KEY_PREFIX + commentId;
-        // 新增：定义取消日志的 Key
-        String unlikeKey = UNLIKE_LOG + commentId;
 
-        // 1. 重建缓存逻辑
-        rebuildLikedCache(commentId, zsetKey, countKey);
+        // 1. 尝试执行 Lua 脚本
+        // 参数说明：Keys列表, ARGV列表
+        long result = executeLikeScript(userSetKey, countKey, commentId);
 
-        // 2. 判断是否点赞
-        boolean isLiked = isUserLiked(commentId, userId, zsetKey);
+        // 2. 如果返回 -1，说明缓存缺失，需要重建
+        if (result == -1) {
+            log.info("缓存缺失，执行重建逻辑... uid:{}, cid:{}", userId, commentId);
 
-        if (isLiked) {
-            // ==================== 执行取消点赞逻辑 ====================
+            // 重建两个缓存
+            rebuildUserLikedCache(userId);
+            rebuildCommentCountCache(commentId);
 
-            // 2.1 Redis ZSet 移除
-            redisTemplate.opsForZSet().remove(zsetKey, userId);
+            // 再次执行 Lua 脚本
+            result = executeLikeScript(userSetKey, countKey, commentId);
 
-            // 2.2 Redis Count 减 1
-            redisTemplate.opsForValue().decrement(countKey);
-
-            // 2.3 写入取消日志 (Unlike Log)
-            redisTemplate.opsForSet().add(unlikeKey, userId);
-        } else {
-            // ==================== 执行点赞逻辑 ====================
-
-            // 3.1 Redis ZSet 新增
-            redisTemplate.opsForZSet().add(zsetKey, userId, System.currentTimeMillis());
-
-            // 3.2 滚动删除点赞列表
-            Long size = redisTemplate.opsForZSet().zCard(zsetKey);
-            if (size != null && size > LIKE_LIMIT) {
-                redisTemplate.opsForZSet().removeRange(zsetKey, 0, size - LIKE_LIMIT - 1);
+            // 如果还是 -1，说明重建失败或者系统异常，做个兜底
+            if (result == -1) {
+                return ResultCodeEnum.SYSTEM_ERROR;
             }
-
-            // 3.3 Redis Count 加 1
-            redisTemplate.opsForValue().increment(countKey);
-
-            // 3.4 从取消日志中移除
-            redisTemplate.opsForSet().remove(unlikeKey, userId);
         }
 
-        // ==================== 公共收尾逻辑 ====================
-
-        // 4. 续期
-        // 只要有操作，就对相关Key全部续期 24h
-        redisTemplate.expire(zsetKey, 24, TimeUnit.HOURS);
-        redisTemplate.expire(countKey, 24, TimeUnit.HOURS);
-        redisTemplate.expire(unlikeKey, 24, TimeUnit.HOURS);
-
-        // 5. 加入点赞数待同步列表
-        redisTemplate.opsForSet().add(LIKE_SYNC_SET, commentId);
-
+        // 3. 根据结果返回
+        // 或者返回特定枚举 UNLIKED
+        if (result == 1) {
+            log.info("点赞成功");
+        } else {
+            log.info("取消点赞成功");
+        }
+        // 消息队列发送点赞记录入库和点赞数量更新请求
+        Like like = new Like();
+        like.setUserId(userId);
+        like.setCommentId(commentId);
+        like.setIsFallback(result == 1?0:1);
+        like.setCreateTime(Date.from(Instant.now()));
+        sender.sendLikeSync(RabbitMQMessageConfig.EXCHANGE_NAME, RabbitMQMessageConfig.QUEUE_NAME_LIKE,like);
         return ResultCodeEnum.SUCCESS;
     }
 
-    /**
-     * 判断用户是否已赞
-     * 策略：Redis ZSet (热数据) -> DB (兜底)
-     */
-    private boolean isUserLiked(Long commentId, Long userId, String zsetKey) {
-        // 1. 先查 ZSet
-        Double score = redisTemplate.opsForZSet().score(zsetKey, userId);
-        if (score != null) {
-            return true;
-        }
-
-        // 2. 如果 ZSet 里没有，不代表没赞 (可能被挤出去了)
-        // 只有当 ZSet 没满时，不在 ZSet 里才等于没赞；如果满了，必须查 DB
-        Long count = likeMapper.countByCommentIdAndUserId(commentId);
-        return count != null && count > 0;
+    private Long executeLikeScript(String userSetKey, String countKey, Long commentId) {
+        return redisTemplate.execute(
+                likeScript,
+                Arrays.asList(userSetKey, countKey), // KEYS
+                commentId,           // ARGV[1]
+                7 * 24 * 60 * 60,    // ARGV[2] UserSet过期时间 7天
+                24 * 60 * 60         // ARGV[3] Count过期时间 1天
+        );
     }
 
-
-    @Description("根据commentId重建点赞缓存")
-    private void rebuildLikedCache(Long commentId, String zsetKey, String countKey) {
-        // 如果计数缓存和列表缓存都存在，直接返回
-        if (redisTemplate.hasKey(countKey) && redisTemplate.hasKey(zsetKey)) {
+    /**
+     * 重建评论点赞数缓存 (只负责 Count)
+     * 调用时机：GET article:count:{id} 返回 null 时
+     */
+    @Description("根据commentId重建点赞数缓存")
+    private void rebuildCommentCountCache(Long commentId) {
+        String countKey = LIKE_COUNT_KEY_PREFIX + commentId;
+        // 1. 第一层检查
+        if (redisTemplate.hasKey(countKey)) {
             return;
         }
 
         RLock lock = redissonClient.getLock(LOCK_KEY_PREFIX_COMMENT_LIKE + commentId);
         try {
-            // 尝试加锁，等待时间5s，上锁后10s自动解锁
+            // 尝试加锁
             if (lock.tryLock(5, 10, TimeUnit.SECONDS)) {
                 try {
-                    // 双重检查 (Double Check Lock)
-                    if (redisTemplate.hasKey(countKey) && redisTemplate.hasKey(zsetKey)) {
+                    // 2. 双重检查 (Double Check)
+                    if (redisTemplate.hasKey(countKey)) {
                         return;
                     }
 
-                    // === 重建逻辑 ===
-                    log.info("为commentId重建缓存: {}", commentId);
+                    log.info("重建评论点赞数缓存，id: {}", commentId);
 
-                    // 1. 查 DB 总数
+                    // 3. 查 DB
                     Long dbCount = likeMapper.countByCommentId(commentId);
                     dbCount = dbCount == null ? 0L : dbCount;
 
-                    // 4. 查 DB 最新点赞用户列表 (Limit 5000)
-                    List<Like> recentLikes = likeMapper.selectLatestLikes(commentId, LIKE_LIMIT);
-
-                    if (CollUtil.isNotEmpty(recentLikes)) {
-                        Set<ZSetOperations.TypedTuple<Object>> tuples = new HashSet<>();
-                        for (Like like : recentLikes) {
-                            // score 使用时间戳
-                            tuples.add(new DefaultTypedTuple<>(like.getUserId(), (double) like.getCreateTime().getTime()));
-                        }
-                        redisTemplate.opsForZSet().add(zsetKey, tuples);
-                        redisTemplate.expire(zsetKey, 24, TimeUnit.HOURS);
-                    } else {
-                        // 防止缓存穿透，可以设一个空值的标志，或者不设ZSet(因为isLiked逻辑有DB兜底)
-                        // 这里选择存一个特殊的占位符，或者单纯设个过期时间
-                        redisTemplate.opsForZSet().add(zsetKey, -1L, 0); // 占位
-                        redisTemplate.expire(zsetKey, 15, TimeUnit.MINUTES);
-                    }
-                    // 3. 设置 Redis Count
-                    redisTemplate.opsForValue().set(countKey, dbCount, 24, TimeUnit.HOURS); // 加上过期时间防止死数据
+                    // 4. 写 Redis
+                    redisTemplate.opsForValue().set(countKey, dbCount, 24, TimeUnit.HOURS);
 
                 } finally {
                     lock.unlock();
@@ -388,7 +363,58 @@ public class CommentServiceImpl implements CommentService {
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            log.error("Lock interrupted", e);
+            log.error("Lock interrupted during comment count rebuild", e);
+        }
+    }
+
+    /**
+     * 重建用户点赞历史缓存 (只负责 User Set)
+     * 调用时机：SISMEMBER user:likes:{uid} 之前的检查发现 Key 不存在时
+     */
+    @Description("根据userId重建用户点赞历史缓存")
+    private void rebuildUserLikedCache(Long userId) {
+        String userSetKey = USER_LIKE_KEY_PREFIX + userId;
+        // 1. 第一层检查
+        if (redisTemplate.hasKey(userSetKey)) {
+            return;
+        }
+
+        RLock lock = redissonClient.getLock(LOCK_KEY_PREFIX_USER_LIKE + userId);
+        try {
+            if (lock.tryLock(5, 10, TimeUnit.SECONDS)) {
+                try {
+                    // 2. 双重检查
+                    if (redisTemplate.hasKey(userSetKey)) {
+                        return;
+                    }
+
+                    log.info("重建用户点赞历史缓存，uid: {}", userId);
+
+                    // 3. 查 DB (注意：这里查的是 commentId 列表，不是 userId)
+                    List<Like> recentLikes = likeMapper.selectLatestLikes(userId, LIKE_LIMIT);
+
+                    if (CollUtil.isNotEmpty(recentLikes)) {
+                        // 提取 CommentId
+                        Object[] commentIds = recentLikes.stream()
+                                .map(Like::getCommentId)
+                                .toArray(); // <--- 关键修正：转为数组
+
+                        // 4. 批量写入 Set
+                        redisTemplate.opsForSet().add(userSetKey, commentIds);
+                    } else {
+                        // 5. 空值占位防穿透
+                        redisTemplate.opsForSet().add(userSetKey, -1L);
+                    }
+                    // 统一设置过期时间，用户历史可以久一点
+                    redisTemplate.expire(userSetKey, 7, TimeUnit.DAYS);
+
+                } finally {
+                    lock.unlock();
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("Lock interrupted during user history rebuild", e);
         }
     }
 
@@ -402,7 +428,7 @@ public class CommentServiceImpl implements CommentService {
         List<Object> results = redisTemplate.executePipelined((RedisCallback<?>) connection -> {
             StringRedisConnection stringConn = (StringRedisConnection) connection;
             for (Long commentId : commentIds) {
-                String key = LIKE_KEY_PREFIX + commentId;
+                String key = USER_LIKE_KEY_PREFIX + commentId;
                 stringConn.sCard(key);
             }
             return null;
@@ -422,100 +448,6 @@ public class CommentServiceImpl implements CommentService {
     @Cacheable(value = "aiConfigDefault")
     public AiConfig getDefaultConfig() {
         return aiConfigMapper.selectDefault();
-    }
-
-    @Scheduled(fixedDelay = 5000) // 建议改用 fixedDelay，跑完上一轮再等5秒，防止积压
-    @Transactional
-    public void syncLikeToDB() {
-        // 1. 每次只取 50-100 个需要同步的 ID，避免一次处理太多导致 OOM
-        // 使用 SPOP 弹出并移除，保证原子性，也不需要再手动删除了
-        List<Object> idObjects = redisTemplate.opsForSet().pop(LIKE_SYNC_SET, 50);
-
-        if (CollUtil.isEmpty(idObjects)) {
-            return;
-        }
-
-        Set<Long> commentIds = idObjects.stream().map(Object::toString).map(Long::valueOf).collect(Collectors.toSet());
-
-        // 2. 不需要加分布式锁（RedissonMultiLock）。
-        // 理由：同步任务只负责"追加"和"指定删除"。
-        // 即使同步过程中用户又点赞了，只是多一次 Insert Ignore，无副作用。
-        // 即使同步过程中用户取消点赞了，会写入 UNLIKE_LOG，下次任务会处理。
-
-        // 3. 准备数据容器
-        List<Like> batchInsertList = new ArrayList<>();
-        List<Like> batchDeleteList = new ArrayList<>();
-        List<CommentIndex> batchUpdateCountList = new ArrayList<>();
-
-        // 4. 使用 Pipeline 批量读取数据 (ZSet列表, Count)
-        List<Object> pipelineResult = redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
-            for (Long cid : commentIds) {
-                String zsetKey = LIKE_KEY_PREFIX + cid;
-                String countKey = LIKE_COUNT_KEY_PREFIX + cid;
-                String unlikeKey = UNLIKE_LOG + cid;
-
-                connection.zSetCommands().zRange(zsetKey.getBytes(), 0, -1); // 0. ZSet members
-                connection.stringCommands().get(countKey.getBytes());        // 1. Count
-                connection.setCommands().sMembers(unlikeKey.getBytes());     // 2. Unlike Log
-                connection.keyCommands().del(unlikeKey.getBytes());          // 3. 读完立刻删除 Unlike Log (防止重复删)
-            }
-            return null;
-        });
-
-        // 5. 解析结果
-        int index = 0;
-        for (Long cid : commentIds) {
-            // --- 处理新增 ---
-            Set<String> redisZSetMembers = (Set<String>) pipelineResult.get(index++);
-            if (CollUtil.isNotEmpty(redisZSetMembers)) {
-                for (String uidStr : redisZSetMembers) {
-                    // 构造对象，后续批量 INSERT IGNORE
-                    long uid = Long.parseLong(uidStr);
-                    if (uid > 0){
-                        batchInsertList.add(new Like(null, uid, cid));
-                    }
-                }
-            }
-
-            // --- 处理计数 ---
-            Object countObj = pipelineResult.get(index++);
-            if (countObj != null) {
-                // Redis Count 存在则信 Redis，否则不更新 DB Count
-                int count = Integer.parseInt(countObj.toString());
-                CommentIndex commentIndex = new CommentIndex();
-                commentIndex.setId(cid);
-                commentIndex.setHotScore(count);
-                batchUpdateCountList.add(commentIndex);
-            }
-
-            // --- 处理删除 ---
-            Set<String> unlikeMembers = (Set<String>) pipelineResult.get(index++);
-            index++; // 跳过 DEL 命令的返回值
-
-            if (CollUtil.isNotEmpty(unlikeMembers)) {
-                for (String uidStr : unlikeMembers) {
-                    batchDeleteList.add(new Like(null, Long.valueOf(uidStr), cid));
-                }
-            }
-        }
-
-        // 6. 执行数据库操作
-        if (CollUtil.isNotEmpty(batchInsertList)) {
-            // 利用数据库唯一索引(comment_id, user_id) 避免重复插入
-            likeMapper.batchInsert(batchInsertList);
-        }
-
-        if (CollUtil.isNotEmpty(batchDeleteList)) {
-            // 批量软删除 WHERE (comment_id = ? AND user_id = ?)
-            likeMapper.batchSoftDelete(batchDeleteList);
-        }
-
-        if (CollUtil.isNotEmpty(batchUpdateCountList)) {
-            commentIndexMapper.batchUpdateLikeCountMap(batchUpdateCountList);
-        }
-
-        log.info("同步完成: {} comments, Insert: {}, Delete: {}, UpdateCount: {}",
-                commentIds.size(), batchInsertList.size(), batchDeleteList.size(), batchUpdateCountList.size());
     }
 
     @Description("给评论列表赋值是否点赞过")

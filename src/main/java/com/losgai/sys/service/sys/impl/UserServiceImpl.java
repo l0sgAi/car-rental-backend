@@ -6,8 +6,6 @@ import cn.hutool.core.util.StrUtil;
 import com.losgai.sys.dto.LoginDto;
 import com.losgai.sys.entity.sys.User;
 import com.losgai.sys.enums.ResultCodeEnum;
-import com.losgai.sys.mapper.CommentMapper;
-import com.losgai.sys.mapper.RentalOrderMapper;
 import com.losgai.sys.mapper.UserMapper;
 import com.losgai.sys.service.sys.UserService;
 import lombok.RequiredArgsConstructor;
@@ -28,10 +26,6 @@ import java.util.List;
 public class UserServiceImpl implements UserService {
 
     private final UserMapper userMapper;
-
-    private final RentalOrderMapper rentalOrderMapper;
-
-    private final CommentMapper commentMapper;
 
     private static final String DEFAULT_PASSWORD = "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92";
 
@@ -176,4 +170,5 @@ public class UserServiceImpl implements UserService {
         // 2. 方法执行成功后，Spring会自动清除ID对应的缓存
         log.info("用户信息已更新，清除缓存: {}", user.getId());
     }
+
 }

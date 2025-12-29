@@ -58,6 +58,10 @@ public class RabbitMQMessageConfig {
     public static final String QUEUE_NAME_REFUND = "refund.queue";
     public static final String ROUTING_KEY_REFUND = "refund";
 
+    // 点赞聚合同步队列
+    public static final String QUEUE_NAME_LIKE = "like.queue";
+    public static final String ROUTING_KEY_LIKE = "like.key";
+
     /// 声明交换机
     @Bean
     public DirectExchange exchange() {
@@ -96,6 +100,11 @@ public class RabbitMQMessageConfig {
     @Bean
     public Queue commentCensorQueue() {
         return QueueBuilder.durable(QUEUE_NAME_COMMENT_CENSOR).build();
+    }
+
+    @Bean
+    public Queue likeQueue() {
+        return QueueBuilder.durable(QUEUE_NAME_LIKE).build();
     }
 
     // 延迟队列
@@ -151,6 +160,11 @@ public class RabbitMQMessageConfig {
     @Bean
     public Binding bindingCommentCensor(Queue commentCensorQueue, DirectExchange exchange) {
         return BindingBuilder.bind(commentCensorQueue).to(exchange).with(ROUTING_KEY_COMMENT_CENSOR);
+    }
+
+    @Bean
+    public Binding bindingLike(Queue likeQueue, DirectExchange exchange) {
+        return BindingBuilder.bind(likeQueue).to(exchange).with(ROUTING_KEY_LIKE);
     }
 
     // 延迟队列绑定

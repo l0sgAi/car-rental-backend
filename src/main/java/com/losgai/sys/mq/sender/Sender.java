@@ -4,6 +4,7 @@ import com.losgai.sys.dto.RefundDto;
 import com.losgai.sys.dto.ReviewDto;
 import com.losgai.sys.entity.carRental.Car;
 import com.losgai.sys.dto.CommentDto;
+import com.losgai.sys.entity.carRental.Like;
 import com.losgai.sys.entity.carRental.RentalOrder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -45,5 +46,10 @@ public class Sender {
     // 发送订单退款信息
     public void sendOrderRefund(String exchange, String routingKey, RefundDto refundDto) {
         rabbitTemplate.convertAndSend(exchange, routingKey, refundDto);
+    }
+
+    // 发送点赞同步消息
+    public void sendLikeSync(String exchange, String routingKey, Like like) {
+        rabbitTemplate.convertAndSend(exchange, routingKey, like);
     }
 }

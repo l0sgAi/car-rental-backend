@@ -34,10 +34,4 @@ public class Like implements Serializable {
 
     @NotNull(message="[是否撤回点赞]不能为空")
     private Integer isFallback;
-
-    public Like(Long id, Long userId, Long commentId) {
-        this.id = id;
-        this.userId = userId;
-        this.commentId = commentId;
-    }
 }

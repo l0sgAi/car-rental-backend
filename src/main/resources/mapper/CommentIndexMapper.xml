@@ -120,4 +120,16 @@
             #{item.id}
         </foreach>
     </update>
+
+    <update id="batchUpdateHeat">
+        UPDATE comment_index
+        SET hot_score = hot_score +
+        <foreach collection="deltaList" item="item" open="CASE id" close="END">
+            WHEN #{item.commentId} THEN #{item.delta}
+        </foreach>
+        WHERE id IN
+        <foreach collection="deltaList" item="item" open="(" separator="," close=")">
+            #{item.commentId}
+        </foreach>
+    </update>
 </mapper>

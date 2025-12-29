@@ -38,9 +38,9 @@ public interface LikeMapper {
 
     void batchSoftDelete(List<Like> likesToSoftDelete);
 
-    Long countByCommentIdAndUserId(Long commentId);
+    Long existByUserIdAndCommentId(Long userId, Long commentId);
 
     Long countByCommentId(Long commentId);
 
-    List<Like> selectLatestLikes(Long commentId, Integer likeLimit);
+    List<Like> selectLatestLikes(Long userId, Integer likeLimit);
 }

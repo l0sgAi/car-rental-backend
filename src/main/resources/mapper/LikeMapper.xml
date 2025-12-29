@@ -41,8 +41,8 @@
         </foreach>
     </select>
 
-    <select id="countByCommentIdAndUserId" resultType="java.lang.Long">
-        select count(1) from `like`
+    <select id="existByUserIdAndCommentId" resultType="java.lang.Long">
+        select exists(1) from `like`
         where
         user_id = #{userId}
         and comment_id = #{commentId}
@@ -59,7 +59,7 @@
         select
         <include refid="Base_Column_List"/>
         from `like`
-        where comment_id = #{commentId}
+        where user_id = #{userId}
         and is_fallback = 0
         order by create_time desc
         limit #{likeLimit}
@@ -100,10 +100,13 @@
     </insert>
 
     <insert id="batchInsert">
-        insert ignore into `like` (user_id, comment_id) values
+        INSERT INTO `like` (user_id, comment_id,is_fallback,create_time) VALUES
         <foreach item="item" index="index" collection="list" separator=",">
-            (#{item.userId}, #{item.commentId})
+            (#{item.userId}, #{item.commentId},#{item.isFallback},#{item.createTime})
         </foreach>
+        ON DUPLICATE KEY UPDATE
+        is_fallback = VALUES(is_fallback), -- 如果 action=1 更新为点赞，action=0 更新为取消
+        create_time = NOW()      -- 更新时间，确保它是“新”的
     </insert>
 
     <update id="updateByPrimaryKeySelective" parameterType="com.losgai.sys.entity.carRental.Like">
