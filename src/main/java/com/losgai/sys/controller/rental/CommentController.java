@@ -6,11 +6,9 @@ import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.losgai.sys.common.sys.Result;
 import com.losgai.sys.dto.CommentDto;
-import com.losgai.sys.entity.carRental.CommentIndex;
 import com.losgai.sys.enums.ResultCodeEnum;
 import com.losgai.sys.service.rental.CommentService;
 import com.losgai.sys.vo.CommentVo;
-import com.losgai.sys.vo.TopCommentVo;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -66,16 +64,16 @@ public class CommentController {
     @SaCheckRole("admin")
     @GetMapping("/admin/list")
     @Tag(name = "获取所有评论信息", description = "管理员分页获取当前所有评论信息列表")
-    public Result<List<TopCommentVo>> query(
+    public Result<List<CommentVo>> query(
             @RequestParam(required = false) String keyWord,
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize) {
         // 开启分页
         PageHelper.startPage(pageNum, pageSize);
         // 执行查询
-        List<TopCommentVo> list = commentService.query(keyWord);
+        List<CommentVo> list = commentService.query(keyWord);
         // 获取分页信息
-        PageInfo<TopCommentVo> pageInfo = new PageInfo<>(list);
+        PageInfo<CommentVo> pageInfo = new PageInfo<>(list);
         // 清理分页
         PageHelper.clearPage();
         // 使用自定义分页返回方法
@@ -84,24 +82,24 @@ public class CommentController {
 
     @GetMapping("/user/list")
     @Tag(name = "获取车辆评论信息", description = "用户获取当前车辆初始评论信息列表")
-    public Result<List<TopCommentVo>> list(@RequestParam Long carId) {
+    public Result<List<CommentVo>> list(@RequestParam Long carId) {
         // 执行查询
-        List<TopCommentVo> list = commentService.queryByCarId(carId);
+        List<CommentVo> list = commentService.queryByCarId(carId);
         return Result.success(list);
     }
 
     @GetMapping("/user/moreComment")
     @Tag(name = "获取车辆评论信息", description = "用户获取更多评论信息")
-    public Result<List<TopCommentVo>> moreComment(
+    public Result<List<CommentVo>> moreComment(
             @RequestParam Long carId,
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize) {
         // 开启分页
         PageHelper.startPage(pageNum, pageSize);
         // 执行查询
-        List<TopCommentVo> list = commentService.getMore(carId);
+        List<CommentVo> list = commentService.getMore(carId);
         // 获取分页信息
-        PageInfo<TopCommentVo> pageInfo = new PageInfo<>(list);
+        PageInfo<CommentVo> pageInfo = new PageInfo<>(list);
         // 清理分页
         PageHelper.clearPage();
         // 使用自定义分页返回方法

@@ -16,13 +16,10 @@ import com.losgai.sys.mq.sender.Sender;
 import com.losgai.sys.service.rental.CommentService;
 import com.losgai.sys.vo.CommentVo;
 import com.losgai.sys.vo.LikeInfoVo;
-import com.losgai.sys.vo.TopCommentVo;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.tomcat.util.threads.VirtualThreadExecutor;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.cache.annotation.Cacheable;
@@ -31,11 +28,9 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.connection.StringRedisConnection;
 import org.springframework.data.redis.core.*;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -177,14 +172,15 @@ public class CommentServiceImpl implements CommentService {
         CommentDto commentDto = commentMapper.selectByPrimaryKey(id);
         if (commentDto != null) {
             // 删除缓存
-            redisTemplate.delete(COMMENT_CACHE_KEY_PREFIX + commentDto.getCarId());
+            redisTemplate.delete(COMMENT_CACHE_KEY_PREFIX + id);
+            redisTemplate.delete(LIKE_COUNT_KEY_PREFIX + id);
         }
         commentMapper.deleteByPrimaryKey(id);
         return ResultCodeEnum.SUCCESS;
     }
 
     @Override
-    public List<TopCommentVo> query(String keyWord) {
+    public List<CommentVo> query(String keyWord) {
         // 1. 查询keyword对应的评论内容
         return commentDetailMapper.query(keyWord);
     }
@@ -196,7 +192,7 @@ public class CommentServiceImpl implements CommentService {
      *  3. 注意内容缓存
      * */
     @Override
-    public List<TopCommentVo> queryByCarId(Long carId) {
+    public List<CommentVo> queryByCarId(Long carId) {
         // 查询评论索引 limit10
         List<CommentIndexDto> indexes = commentIndexMapper.queryByCarIdWithLimit(carId);
 
@@ -233,13 +229,13 @@ public class CommentServiceImpl implements CommentService {
         return indexes.stream()
                 .filter(index -> index.getParentCommentId() == 0)
                 .map(index -> {
-                    TopCommentVo vo = convertToVo(index, contentMap, likeMap);
+                    CommentVo vo = convertToVo(index, contentMap, likeMap);
                     // 寻找该一级评论下的二级评论 (Reply)
                     List<CommentVo> children = indexes.stream()
                             .filter(child ->
                                     index.getId().equals(child.getParentCommentId())) // 假设有rootParentId指向顶级
                             .map(child ->
-                                    convertToVo(child, contentMap, likeMap).toChild())
+                                    convertToVo(child, contentMap, likeMap))
                             .collect(Collectors.toList());
                     vo.setChildren(children);
                     return vo;
@@ -247,10 +243,10 @@ public class CommentServiceImpl implements CommentService {
                 .collect(Collectors.toList());
     }
 
-    private TopCommentVo convertToVo(CommentIndexDto index,
-                                     Map<Long, CommentDetail> contentMap,
-                                     Map<Long, LikeInfoVo> likeMap) {
-        TopCommentVo vo = new TopCommentVo();
+    private CommentVo convertToVo(CommentIndexDto index,
+                                  Map<Long, CommentDetail> contentMap,
+                                  Map<Long, LikeInfoVo> likeMap) {
+        CommentVo vo = new CommentVo();
         vo.setId(index.getId());
         vo.setUserId(index.getUserId());
         vo.setUsername(index.getUsername());
@@ -345,9 +341,9 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     @Description("加载更多评论，不走缓存")
-    public List<TopCommentVo> getMore(Long carId) {
+    public List<CommentVo> getMore(Long carId) {
         // 查询顶级评论
-        List<TopCommentVo> topComments = commentMapper.queryVoByCarId(carId);
+        List<CommentVo> topComments = commentMapper.queryVoByCarId(carId);
 
         if (topComments.isEmpty()) {
             return Collections.emptyList();
@@ -359,7 +355,7 @@ public class CommentServiceImpl implements CommentService {
 
         // 收集评论ID
         List<Long> parentIds = topComments.stream()
-                .map(TopCommentVo::getId)
+                .map(CommentVo::getId)
                 .collect(Collectors.toList());
 
         // 查询子评论，对于每个顶级评论，一次最多加载3条
@@ -563,7 +559,7 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Description("给评论列表赋值是否点赞过")
-    private void assignLikedTop(List<TopCommentVo> commentVos, Long curUserId) {
+    private void assignLikedTop(List<CommentVo> commentVos, Long curUserId) {
 //        for (TopCommentVo comment : commentVos) {
 //            // 尝试重建缓存
 //            rebuildLikedCache(comment.getId());

@@ -4,7 +4,6 @@ package com.losgai.sys.mapper;
 import com.losgai.sys.dto.CommentHeatDto;
 import com.losgai.sys.dto.CommentIndexDto;
 import com.losgai.sys.entity.carRental.CommentIndex;
-import com.losgai.sys.vo.TopCommentVo;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;

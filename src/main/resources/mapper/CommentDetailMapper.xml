@@ -27,7 +27,7 @@
         where  id = #{id} 
     </select>
 
-    <select id="query" resultType="com.losgai.sys.vo.TopCommentVo">
+    <select id="query" resultType="com.losgai.sys.vo.CommentVo">
         SELECT
         ci.id              AS id,
         ci.user_id         AS userId,

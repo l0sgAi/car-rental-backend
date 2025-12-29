@@ -28,7 +28,7 @@
         where  id = #{id} 
     </select>
 
-    <select id="query" resultType="com.losgai.sys.vo.TopCommentVo">
+    <select id="query" resultType="com.losgai.sys.vo.CommentVo">
         SELECT c.id AS id,
         c.user_id AS userId,
         u.username AS username,
@@ -66,7 +66,7 @@
     </select>
 
     <!--封装顶级评论-->
-    <select id="queryVoByCarIdWithLimit" resultType="com.losgai.sys.vo.TopCommentVo">
+    <select id="queryVoByCarIdWithLimit" resultType="com.losgai.sys.vo.CommentVo">
         SELECT c.id                 AS id,
                c.user_id            AS userId,
                u.username           AS username,
@@ -98,7 +98,7 @@
         LIMIT 5; --
     </select>
 
-    <select id="queryVoByCarId" resultType="com.losgai.sys.vo.TopCommentVo">
+    <select id="queryVoByCarId" resultType="com.losgai.sys.vo.CommentVo">
         SELECT c.id                 AS id,
                c.user_id            AS userId,
                u.username           AS username,

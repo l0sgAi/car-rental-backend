@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.util.Date;
+import java.util.List;
 
 /**
  * 评论数据传输对象，支持树形结构
@@ -29,11 +30,6 @@ public class CommentVo {
      * 评论用户头像
      * */
     private String avatar;
-
-    /**
-     * 评论用户类型 0-未租过 1-租户 2-管理员
-     * */
-    private Integer userType;
     
     /**
      * 对应车辆ID
@@ -59,9 +55,6 @@ public class CommentVo {
      * 评论内容
      */
     private String content;
-
-    @Schema(description="评论图片URL列表(JSON数组)")
-    private String extraImages;
     
     /**
      * 点赞数量
@@ -72,6 +65,9 @@ public class CommentVo {
      * 评分(只有租户有)
      */
     private Integer score;
+
+    @Schema(description="评论图片URL列表(JSON数组)")
+    private String extraImages;
     
     /**
      * 创建时间
@@ -82,5 +78,10 @@ public class CommentVo {
      * 是否点赞过 1-点赞过 0-未点赞过 默认0
      */
     private Integer liked = 0;
+    
+    /**
+     * 子评论列表
+     */
+    private List<CommentVo> children;
 
 }
