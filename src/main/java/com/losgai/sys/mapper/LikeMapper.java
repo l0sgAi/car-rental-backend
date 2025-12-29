@@ -40,7 +40,7 @@ public interface LikeMapper {
 
     Long existByUserIdAndCommentId(Long userId, Long commentId);
 
-    Long countByCommentId(Long commentId);
+    Integer countByCommentId(Long commentId);
 
     List<Like> selectLatestLikes(Long userId, Integer likeLimit);
 }

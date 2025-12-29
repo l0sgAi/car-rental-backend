@@ -30,11 +30,6 @@ public class TopCommentVo {
      * 评论用户头像
      * */
     private String avatar;
-
-    /**
-     * 评论用户类型 0-未租过 1-租户 2-管理员
-     * */
-    private Integer userType;
     
     /**
      * 对应车辆ID
@@ -88,5 +83,24 @@ public class TopCommentVo {
      * 子评论列表
      */
     private List<CommentVo> children;
+
+    public CommentVo toChild(){
+         CommentVo vo = new CommentVo();
+         vo.setId(this.getId());
+         vo.setUserId(this.getUserId());
+         vo.setUsername(this.getUsername());
+         vo.setAvatar(this.getAvatar());
+         vo.setCarId(this.getCarId());
+         vo.setCarName(this.getCarName());
+         vo.setParentCommentId(this.getParentCommentId());
+         vo.setFollowCommentId(this.getFollowCommentId());
+         vo.setContent(this.getContent());
+         vo.setLikeCount(this.getLikeCount());
+         vo.setScore(this.getScore());
+         vo.setExtraImages(this.getExtraImages());
+         vo.setCreateTime(this.getCreateTime());
+         vo.setLiked(this.getLiked());
+         return vo;
+    }
 
 }

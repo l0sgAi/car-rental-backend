@@ -1,5 +1,6 @@
 package com.losgai.sys.vo;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.util.Date;
@@ -42,7 +43,7 @@ public class CommentVo {
     /**
      * 对应车辆名称
      */
-    private Long carName;
+    private String carName;
     
     /**
      * 父级评论id,默认0即为顶级评论
@@ -58,6 +59,9 @@ public class CommentVo {
      * 评论内容
      */
     private String content;
+
+    @Schema(description="评论图片URL列表(JSON数组)")
+    private String extraImages;
     
     /**
      * 点赞数量

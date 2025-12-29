@@ -124,6 +124,7 @@ CREATE TABLE `comment_index`
 
 -- 推荐索引，必须包含 car_id 用于分片路由，hot_score 用于排序，create_time排序补充
 ALTER TABLE `comment_index` ADD INDEX `idx_car_hot` (`car_id`, `parent_comment_id`, `hot_score` DESC, `create_time` DESC);
+CREATE INDEX idx_car_hot_only ON comment_index (car_id, hot_score DESC);
 
 -- 评论详情表
 CREATE TABLE `comment_detail`

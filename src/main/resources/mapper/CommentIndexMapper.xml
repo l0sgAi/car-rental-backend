@@ -28,10 +28,33 @@
         where  id = #{id} 
     </select>
 
+    <select id="queryByCarIdWithLimit" resultType="com.losgai.sys.dto.CommentIndexDto">
+        select
+            ci.id as id,
+            ci.user_id as userId,
+            u.username as username,
+            u.avatar_url as avatar,
+            ci.car_id as carId,
+            c.name as carName,
+            ci.parent_comment_id as parentCommentId,
+            ci.follow_comment_id as followCommentId,
+            ci.hot_score as hotScore,
+            ci.create_time as createTime,
+            ci.update_time as updateTime,
+            ci.deleted as deleted
+        from comment_index ci
+        left join user u on u.id = ci.user_id
+        left join car c on c.id = ci.car_id
+        where ci.car_id = #{carId}
+        order by ci.hot_score desc
+        limit 10
+    </select>
+
     <delete id="deleteByPrimaryKey" parameterType="java.lang.Long">
         delete from comment_index
         where  id = #{id} 
     </delete>
+
     <insert id="insert" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.CommentIndex" useGeneratedKeys="true">
         insert into comment_index
         ( id,user_id,car_id,parent_comment_id,follow_comment_id,hot_score,create_time,

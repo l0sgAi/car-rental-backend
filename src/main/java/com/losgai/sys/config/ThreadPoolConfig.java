@@ -6,6 +6,8 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 
 @Configuration
@@ -23,6 +25,15 @@ public class ThreadPoolConfig {
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
         executor.initialize();
         return executor;
+    }
+
+    /**
+     * JDK 21 新特性：为每个任务创建一个新的虚拟线程
+     * 不再需要 corePoolSize, maxPoolSize 等参数
+     */
+    @Bean("vtExecutor")
+    public ExecutorService vtExecutor() {
+        return Executors.newVirtualThreadPerTaskExecutor();
     }
     
 }
