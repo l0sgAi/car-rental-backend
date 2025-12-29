@@ -128,46 +128,6 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
-    @Transactional
-    public ResultCodeEnum userAdd(CommentDto comment, Long userId) {
-        // userId后端检查
-        comment.setUserId(userId);
-        comment.setCreateTime(Date.from(Instant.now()));
-        comment.setUpdateTime(Date.from(Instant.now()));
-        // 构建索引
-        CommentIndex commentIndex = new CommentIndex();
-        commentIndex.setUserId(userId);
-        commentIndex.setCarId(comment.getCarId());
-        commentIndex.setParentCommentId(comment.getParentCommentId());
-        commentIndex.setFollowCommentId(comment.getFollowCommentId());
-        commentIndex.setHotScore(0);
-        commentIndex.setCreateTime(comment.getCreateTime());
-        commentIndex.setUpdateTime(comment.getUpdateTime());
-        // 审核结束前都置为1已经删除，不做展示
-        commentIndex.setDeleted(1);
-        // 构建详情
-        CommentDetail commentDetail = new CommentDetail();
-        commentDetail.setIndexId(commentIndex.getId());
-        commentDetail.setContent(comment.getContent());
-        // score从用户订单中查询
-        Integer score = rentalOrderMapper.getScoreByUserIdAndCarId(userId, comment.getCarId());
-        commentDetail.setScore(score);
-        commentDetail.setExtraImages(comment.getExtraImages());
-        commentDetail.setCreateTime(comment.getCreateTime());
-        commentDetail.setUpdateTime(comment.getUpdateTime());
-        // 审核结束前都置为1已经删除，不做展示
-        commentDetail.setDeleted(1);
-        // 执行插入
-        commentIndexMapper.insert(commentIndex);
-        commentDetailMapper.insert(commentDetail);
-        // 发给消息队列执行审核
-        sender.sendCarReview(RabbitMQMessageConfig.EXCHANGE_NAME,
-                RabbitMQMessageConfig.ROUTING_KEY_COMMENT_CENSOR,
-                new ReviewDto(commentIndex.getId(), commentDetail.getId(),commentDetail.getContent()));
-        return ResultCodeEnum.SUCCESS;
-    }
-
-    @Override
     public ResultCodeEnum delete(Long id) {
         CommentDto commentDto = commentMapper.selectByPrimaryKey(id);
         if (commentDto != null) {

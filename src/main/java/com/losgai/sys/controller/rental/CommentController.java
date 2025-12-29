@@ -43,7 +43,7 @@ public class CommentController {
     @Tag(name = "新增评论",description = "用户新增/回复评论")
     public Result<String> userAdd(@RequestBody @Valid CommentDto comment) {
         Long userId = StpUtil.getLoginIdAsLong();
-        ResultCodeEnum codeEnum = commentService.userAdd(comment, userId);
+        ResultCodeEnum codeEnum = commentService.add(comment, userId);
         if (!Objects.equals(codeEnum.getCode(), ResultCodeEnum.SUCCESS.getCode())) {
             return Result.info(codeEnum.getCode(),codeEnum.getMessage());
         }

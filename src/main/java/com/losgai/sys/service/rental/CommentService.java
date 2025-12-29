@@ -26,6 +26,4 @@ public interface CommentService {
     Map<Long, Long> queryCommentLikeCounts(List<Long> commentIds);
 
     AiConfig getDefaultConfig();
-
-    ResultCodeEnum userAdd(CommentDto comment, Long userId);
 }
