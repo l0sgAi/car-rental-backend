@@ -29,4 +29,6 @@ public interface CommentDetailMapper {
     int updateByPrimaryKey(CommentDetail record);
 
     List<CommentVo> query(String keyWord);
+
+    List<CommentDetail> selectBatchIds(List<Long> missingIds);
 }

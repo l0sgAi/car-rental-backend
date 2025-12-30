@@ -58,24 +58,34 @@
         ORDER BY ci.create_time DESC
     </select>
 
+    <select id="selectBatchIds" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List" />
+        FROM comment_detail
+        where index_id in
+        <foreach item="item" collection="list" separator="," open="(" close=")" index="">
+            #{item}
+        </foreach>
+    </select>
+
     <delete id="deleteByPrimaryKey" parameterType="java.lang.Long">
         delete from comment_detail
         where  id = #{id} 
     </delete>
     <insert id="insert" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.CommentDetail" useGeneratedKeys="true">
         insert into comment_detail
-        ( id,comment_detail.index_id,content,like_count,score,extra_images,create_time,
+        ( id,index_id,content,score,extra_images,create_time,
         update_time,deleted)
-        values (#{id},#{content},#{likeCount},#{score},#{extraImages},#{createTime},
+        values (#{id},#{indexId},#{content},#{score},#{extraImages},#{createTime},
         #{updateTime},#{deleted})
     </insert>
+
     <insert id="insertSelective" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.CommentDetail" useGeneratedKeys="true">
         insert into comment_detail
         <trim prefix="(" suffix=")" suffixOverrides=",">
                 <if test="id != null">id,</if>
                 <if test="indexId != null">index_id,</if>
                 <if test="content != null">content,</if>
-                <if test="likeCount != null">like_count,</if>
                 <if test="score != null">score,</if>
                 <if test="extraImages != null">extra_images,</if>
                 <if test="createTime != null">create_time,</if>
@@ -86,7 +96,6 @@
                 <if test="id != null">#{id},</if>
                 <if test="indexId != null">#{indexId},</if>
                 <if test="content != null">#{content},</if>
-                <if test="likeCount != null">#{likeCount},</if>
                 <if test="score != null">#{score},</if>
                 <if test="extraImages != null">#{extraImages},</if>
                 <if test="createTime != null">#{createTime},</if>
@@ -102,9 +111,6 @@
                 </if>
                 <if test="indexId != null">
                     index_id = #{indexId},
-                </if>
-                <if test="likeCount != null">
-                    like_count = #{likeCount},
                 </if>
                 <if test="score != null">
                     score = #{score},
@@ -129,7 +135,6 @@
         set
             index_id =  #{indexId},
             content =  #{content},
-            like_count =  #{likeCount},
             score =  #{score},
             extra_images =  #{extraImages},
             create_time =  #{createTime},

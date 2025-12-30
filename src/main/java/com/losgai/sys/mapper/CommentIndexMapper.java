@@ -33,5 +33,9 @@ public interface CommentIndexMapper {
 
     void batchUpdateHeat(List<CommentHeatDto> heatDtoList);
 
-    List<CommentIndexDto> queryByCarIdWithLimit(Long carId);
+    List<CommentIndexDto> queryByCarIdWithLimit(Long carId,Integer limit);
+
+    List<CommentIndexDto> queryReplyWithLimit(Long parentCommentId);
+
+    List<CommentIndexDto> queryByCarId(Long carId);
 }

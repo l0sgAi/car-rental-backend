@@ -78,10 +78,5 @@ public class CommentVo {
      * 是否点赞过 1-点赞过 0-未点赞过 默认0
      */
     private Integer liked = 0;
-    
-    /**
-     * 子评论列表
-     */
-    private List<CommentVo> children;
 
 }

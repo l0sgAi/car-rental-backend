@@ -1,10 +1,12 @@
 package com.losgai.sys.mapper;
 
+import com.losgai.sys.dto.CommentLikeCountDto;
 import com.losgai.sys.entity.carRental.Like;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -43,4 +45,11 @@ public interface LikeMapper {
     Integer countByCommentId(Long commentId);
 
     List<Like> selectLatestLikes(Long userId, Integer likeLimit);
+
+    /**
+     * 批量查询评论点赞数
+     * @param commentIds 评论ID列表
+     * @return 包含ID和数量的对象列表
+     */
+    List<CommentLikeCountDto> selectCountsBatch(@Param("commentIds") List<Long> commentIds);
 }

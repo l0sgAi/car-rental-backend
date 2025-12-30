@@ -25,8 +25,6 @@ public class CommentIndexDto {
      * 对应车辆ID
      */
     private Long carId;
-    @Schema(description = "车辆名称")
-    private String carName;
     /**
      * 父级评论id,默认0即为顶级评论
      */
@@ -35,6 +33,8 @@ public class CommentIndexDto {
      * 回复评论id,默认0即非回复评论
      */
     private Long followCommentId;
+    @Schema(description = "回复数")
+    private Integer followCount;
     @Schema(description = "热度评分-当前即为点赞数")
     private Integer hotScore;
 

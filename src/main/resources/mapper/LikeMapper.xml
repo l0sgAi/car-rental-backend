@@ -65,6 +65,20 @@
         limit #{likeLimit}
     </select>
 
+    <!-- 批量统计点赞数 -->
+    <select id="selectCountsBatch" resultType="com.losgai.sys.dto.CommentLikeCountDto">
+        SELECT
+        comment_id AS commentId,
+        COUNT(1) AS count
+        FROM `like`
+        WHERE comment_id IN
+        <foreach collection="commentIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND is_fallback = 0
+        GROUP BY comment_id
+    </select>
+
     <delete id="deleteByPrimaryKey" parameterType="java.lang.Long">
         delete
         from `like`

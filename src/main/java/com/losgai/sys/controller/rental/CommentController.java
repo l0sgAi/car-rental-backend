@@ -93,7 +93,7 @@ public class CommentController {
     public Result<List<CommentVo>> moreComment(
             @RequestParam Long carId,
             @RequestParam(defaultValue = "1") int pageNum,
-            @RequestParam(defaultValue = "10") int pageSize) {
+            @RequestParam(defaultValue = "20") int pageSize) {
         // 开启分页
         PageHelper.startPage(pageNum, pageSize);
         // 执行查询

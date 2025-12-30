@@ -4,6 +4,7 @@ import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.collection.CollUtil;
 import com.losgai.sys.config.RabbitMQMessageConfig;
 import com.losgai.sys.dto.CommentIndexDto;
+import com.losgai.sys.dto.CommentLikeCountDto;
 import com.losgai.sys.dto.ReviewDto;
 import com.losgai.sys.entity.ai.AiConfig;
 import com.losgai.sys.dto.CommentDto;
@@ -28,12 +29,14 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.connection.StringRedisConnection;
 import org.springframework.data.redis.core.*;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -78,6 +81,9 @@ public class CommentServiceImpl implements CommentService {
     // 点赞上限
     public static final Integer LIKE_LIMIT = 5000;
 
+    // 定义基础缓存时间（例如 24 小时）
+    private static final long CACHE_TTL_SECONDS = 60 * 60 * 24;
+
     private DefaultRedisScript<Long> likeScript;
 
     @PostConstruct
@@ -104,6 +110,8 @@ public class CommentServiceImpl implements CommentService {
         commentIndex.setUpdateTime(comment.getUpdateTime());
         // 审核结束前都置为1已经删除，不做展示
         commentIndex.setDeleted(1);
+        // 执行插入
+        commentIndexMapper.insert(commentIndex);
         // 构建详情
         CommentDetail commentDetail = new CommentDetail();
         commentDetail.setIndexId(commentIndex.getId());
@@ -116,8 +124,6 @@ public class CommentServiceImpl implements CommentService {
         commentDetail.setUpdateTime(comment.getUpdateTime());
         // 审核结束前都置为1已经删除，不做展示
         commentDetail.setDeleted(1);
-        // 执行插入
-        commentIndexMapper.insert(commentIndex);
         commentDetailMapper.insert(commentDetail);
         // 发给消息队列执行审核
         sender.sendCarReview(RabbitMQMessageConfig.EXCHANGE_NAME,
@@ -152,8 +158,8 @@ public class CommentServiceImpl implements CommentService {
      * */
     @Override
     public List<CommentVo> queryByCarId(Long carId) {
-        // 查询评论索引 limit10
-        List<CommentIndexDto> indexes = commentIndexMapper.queryByCarIdWithLimit(carId);
+        // 查询1级评论索引 limit10，带回复数量
+        List<CommentIndexDto> indexes = commentIndexMapper.queryByCarIdWithLimit(carId,10);
 
         if (indexes.isEmpty()) {
             return Collections.emptyList();
@@ -186,153 +192,247 @@ public class CommentServiceImpl implements CommentService {
         // 假设有rootParentId指向顶级
 
         return indexes.stream()
-                .filter(index -> index.getParentCommentId() == 0)
-                .map(index -> {
-                    CommentVo vo = convertToVo(index, contentMap, likeMap);
-                    // 寻找该一级评论下的二级评论 (Reply)
-                    List<CommentVo> children = indexes.stream()
-                            .filter(child ->
-                                    index.getId().equals(child.getParentCommentId())) // 假设有rootParentId指向顶级
-                            .map(child ->
-                                    convertToVo(child, contentMap, likeMap))
-                            .collect(Collectors.toList());
-                    vo.setChildren(children);
-                    return vo;
-                })
+                .map(index -> convertToVo(index, contentMap, likeMap))
                 .collect(Collectors.toList());
     }
 
-    private CommentVo convertToVo(CommentIndexDto index,
-                                  Map<Long, CommentDetail> contentMap,
-                                  Map<Long, LikeInfoVo> likeMap) {
-        CommentVo vo = new CommentVo();
-        vo.setId(index.getId());
-        vo.setUserId(index.getUserId());
-        vo.setUsername(index.getUsername());
-        vo.setAvatar(index.getAvatar());
-        vo.setCarId(index.getCarId());
-        vo.setParentCommentId(index.getParentCommentId());
-        vo.setFollowCommentId(index.getFollowCommentId());
-        vo.setCarName(index.getCarName());
-        // 点赞数和点赞状态封装
-        vo.setLikeCount(likeMap.get(index.getId()) == null ? 0 : likeMap.get(index.getId()).getCount());
-        vo.setLiked(likeMap.get(index.getId()) == null ? 0 : likeMap.get(index.getId()).isLiked()? 1:0);
-        // 评论内容封装
-        if(contentMap.containsKey(index.getId())){
-            CommentDetail detail = contentMap.get(index.getId());
-            vo.setScore(detail.getScore());
-            vo.setContent(detail.getContent());
-            vo.setExtraImages(detail.getExtraImages());
+    @Override
+    @Description("分页加载更多1级评论")
+    public List<CommentVo> getMore(Long carId) {
+        // 查询1级评论索引 limit20，带回复数量，覆盖前10条
+        List<CommentIndexDto> indexes = commentIndexMapper.queryByCarId(carId);
+
+        if (indexes.isEmpty()) {
+            return Collections.emptyList();
         }
-        vo.setCreateTime(index.getCreateTime());
-        return vo;
+        Long curUserId = StpUtil.getLoginIdAsLong();
+
+        // 提取所有涉及的 commentId，用于批量查询
+        List<Long> commentIds = indexes.stream().map(CommentIndexDto::getId).collect(Collectors.toList());
+
+        // ================== 异步任务编排开始 ==================
+
+        // 2. 异步任务 A：查询评论内容（带多级缓存策略）
+        CompletableFuture<Map<Long, CommentDetail>> contentFuture = CompletableFuture.supplyAsync(() ->
+                getCommentContentMap(commentIds), vtExecutor);
+
+        // 3. 异步任务 B：查询点赞数据（点赞数 + 当前用户是否点赞）
+        CompletableFuture<Map<Long, LikeInfoVo>> likeFuture = CompletableFuture.supplyAsync(() ->
+                getCommentLikeMap(commentIds, curUserId), vtExecutor);
+
+        CompletableFuture.allOf(contentFuture, likeFuture).join();
+
+        // ================== 数据组装 ==================
+
+        Map<Long, CommentDetail> contentMap = contentFuture.getNow(Collections.emptyMap());
+        Map<Long, LikeInfoVo> likeMap = likeFuture.getNow(Collections.emptyMap());
+
+        // 5. 分组与封装 (父子评论归位)
+        // 找出所有一级评论 (假设 parentId 为 0 或 null 代表一级)
+        // 寻找该一级评论下的二级评论 (Reply)
+        // 假设有rootParentId指向顶级
+
+        return indexes.stream()
+                .map(index -> convertToVo(index, contentMap, likeMap))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Description("分页加载回复")
+    public List<CommentVo> loadReplyByCommentId(Long parentCommentId) {
+        // 查询1级评论索引 limit20，带回复数量，覆盖前10条
+        List<CommentIndexDto> indexes = commentIndexMapper.queryReplyWithLimit(parentCommentId);
+
+        if (indexes.isEmpty()) {
+            return Collections.emptyList();
+        }
+        Long curUserId = StpUtil.getLoginIdAsLong();
+
+        // 提取所有涉及的 commentId，用于批量查询
+        List<Long> commentIds = indexes.stream().map(CommentIndexDto::getId).collect(Collectors.toList());
+
+        // ================== 异步任务编排开始 ==================
+
+        // 2. 异步任务 A：查询评论内容（带多级缓存策略）
+        CompletableFuture<Map<Long, CommentDetail>> contentFuture = CompletableFuture.supplyAsync(() ->
+                getCommentContentMap(commentIds), vtExecutor);
+
+        // 3. 异步任务 B：查询点赞数据（点赞数 + 当前用户是否点赞）
+        CompletableFuture<Map<Long, LikeInfoVo>> likeFuture = CompletableFuture.supplyAsync(() ->
+                getCommentLikeMap(commentIds, curUserId), vtExecutor);
+
+        CompletableFuture.allOf(contentFuture, likeFuture).join();
+
+        // ================== 数据组装 ==================
+
+        Map<Long, CommentDetail> contentMap = contentFuture.getNow(Collections.emptyMap());
+        Map<Long, LikeInfoVo> likeMap = likeFuture.getNow(Collections.emptyMap());
+
+        // 5. 分组与封装 (父子评论归位)
+        // 找出所有一级评论 (假设 parentId 为 0 或 null 代表一级)
+        // 寻找该一级评论下的二级评论 (Reply)
+        // 假设有rootParentId指向顶级
+
+        return indexes.stream()
+                .map(index -> convertToVo(index, contentMap, likeMap))
+                .collect(Collectors.toList());
     }
 
     /**
-     * 获取评论内容 Map (Redis -> DB -> Redis)
+     * 获取评论内容 Map
+     * 优化策略: MultiGet(Redis) -> BatchSelect(DB) -> Pipeline SetEx(Redis)
      */
     private Map<Long, CommentDetail> getCommentContentMap(List<Long> commentIds) {
-        // TODO: pipeline 和DB批量查询优化
         Map<Long, CommentDetail> resultMap = new HashMap<>();
 
-        // 简单实现：循环查缓存
-        for (Long id : commentIds) {
-            String cacheKey = COMMENT_CACHE_KEY_PREFIX + id;
-            CommentDetail commentDetail = (CommentDetail) redisTemplate.opsForValue().get(cacheKey);
-            if (commentDetail == null) {
-                commentDetail = commentDetailMapper.selectByPrimaryKey(id);
-                redisTemplate.opsForValue().set(COMMENT_CACHE_KEY_PREFIX + id, commentDetail);
-                resultMap.put(id, commentDetail);
+        // 1. 构造 Redis Keys
+        List<String> keys = commentIds.stream()
+                .map(id -> COMMENT_CACHE_KEY_PREFIX + id)
+                .collect(Collectors.toList());
+
+        // 2. 批量查询 Redis
+        List<Object> cacheResults = redisTemplate.opsForValue().multiGet(keys);
+
+        List<Long> missingIds = new ArrayList<>();
+
+        // 3. 分离命中与未命中
+        for (int i = 0; i < commentIds.size(); i++) {
+            Long id = commentIds.get(i);
+            Object value = (cacheResults != null && cacheResults.size() > i) ? cacheResults.get(i) : null;
+            if (value instanceof CommentDetail) {
+                resultMap.put(id, (CommentDetail) value);
+            } else {
+                missingIds.add(id);
             }
         }
+
+        // 4. 处理未命中：查库 + Pipeline 回填
+        if (!missingIds.isEmpty()) {
+            List<CommentDetail> dbDetails = commentDetailMapper.selectBatchIds(missingIds);
+
+            // 准备回填的数据
+            Map<String, CommentDetail> cacheUploadMap = new HashMap<>();
+            for (CommentDetail detail : dbDetails) {
+                resultMap.put(detail.getId(), detail);
+                cacheUploadMap.put(COMMENT_CACHE_KEY_PREFIX + detail.getIndexId(), detail);
+            }
+
+            if (!cacheUploadMap.isEmpty()) {
+                // 使用 Pipeline + SetEx 替代 multiSet，支持过期时间
+                redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+                    @SuppressWarnings("unchecked")
+                    RedisSerializer<String> keySerializer = (RedisSerializer<String>) redisTemplate.getKeySerializer();
+                    @SuppressWarnings("unchecked")
+                    RedisSerializer<Object> valueSerializer = (RedisSerializer<Object>) redisTemplate.getValueSerializer();
+
+                    for (Map.Entry<String, CommentDetail> entry : cacheUploadMap.entrySet()) {
+                        byte[] keyBytes = keySerializer.serialize(entry.getKey());
+                        byte[] valBytes = valueSerializer.serialize(entry.getValue());
+
+                        // 生成随机过期时间：基础时间 + 0~3600秒随机值，防止雪崩
+                        long ttl = CACHE_TTL_SECONDS + ThreadLocalRandom.current().nextInt(3600);
+
+                        if (keyBytes != null && valBytes != null) {
+                            connection.stringCommands().setEx(keyBytes, ttl, valBytes);
+                        }
+                    }
+                    return null;
+                });
+            }
+        }
+
         return resultMap;
     }
 
     /**
-     * 获取点赞信息 Map (Redis -> DB -> Redis)
+     * 获取点赞信息 Map
+     * 优化策略: Pipeline Get(Redis) -> BatchSelect(DB) -> Pipeline SetEx(Redis)
      */
     private Map<Long, LikeInfoVo> getCommentLikeMap(List<Long> commentIds, Long curUserId) {
-        // TODO: pipeline 批量查询优化
         Map<Long, LikeInfoVo> resultMap = new HashMap<>();
-        // 使用 Set 存储点赞该用户点赞的评论ID
+
+        // 0. 预处理用户点赞集合
+        rebuildUserLikedCache(curUserId);
         String userLikeKey = USER_LIKE_KEY_PREFIX + curUserId;
-        for (Long id : commentIds) {
+
+        // 1. 使用 Pipeline 批量获取 (Count + IsLiked)
+        List<Object> pipelineResults = stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+            for (Long id : commentIds) {
+                String likeCountKey = LIKE_COUNT_KEY_PREFIX + id;
+
+                // 命令 A: 获取点赞数
+                connection.stringCommands().get(likeCountKey.getBytes());
+
+                // 命令 B: 获取是否点赞 (仅当已登录时查询)
+                connection.setCommands().sIsMember(userLikeKey.getBytes(), String.valueOf(id).getBytes());
+            }
+            return null;
+        });
+
+        // 2. 解析结果
+        // 步长
+        int step = 2;
+
+        List<Long> missingCountIds = new ArrayList<>();
+
+        for (int i = 0; i < commentIds.size(); i++) {
+            Long id = commentIds.get(i);
             LikeInfoVo info = new LikeInfoVo();
-            String likeCountKey = LIKE_COUNT_KEY_PREFIX + id;
-            // 缓存击穿/不存在：检查/重建缓存
-            rebuildCommentCountCache(id);
-            // 1. 获取点赞数
-            String countStr = stringRedisTemplate.opsForValue().get(likeCountKey);
-            if (countStr != null) {
-                info.setCount(Integer.parseInt(countStr));
+
+            // --- 解析点赞数 ---
+            Object countObj = pipelineResults.get(i * step);
+            if (countObj != null) {
+                info.setCount(Integer.parseInt((String) countObj));
+            } else {
+                missingCountIds.add(id);
+                info.setCount(0);
             }
 
-            // 2. 获取当前用户是否点赞
-            if (curUserId != null) {
-                rebuildUserLikedCache(curUserId);
-                // 判断 Set 中是否存在 userId
-                Boolean isMember = stringRedisTemplate.opsForSet().isMember(userLikeKey, String.valueOf(id));
-                // 注意：如果 Redis key 不存在，isMember 也是 false。
-                // 严谨逻辑：如果 countKey 存在但 userLikeKey 不存在，说明可能是冷数据被驱逐，需查库判断状态
-                if (isMember != null && isMember) {
-                    info.setLiked(true);
-                }
-            } else {
-                info.setLiked(false);
-            }
+            // --- 解析是否点赞 ---
+            // pipelineResults可能会包含null，如果命令执行失败
+            Object isMemberObj = pipelineResults.get(i * step + 1);
+            info.setLiked(isMemberObj instanceof Boolean && (Boolean) isMemberObj);
+
             resultMap.put(id, info);
         }
+
+        // 3. 批量查库回填点赞数
+        if (!missingCountIds.isEmpty()) {
+            List<CommentLikeCountDto> dtos = likeMapper.selectCountsBatch(missingCountIds);
+
+            Map<Long, Integer> dbCounts = dtos.stream()
+                    .collect(Collectors.toMap(CommentLikeCountDto::getCommentId, CommentLikeCountDto::getCount));
+
+            Map<String, String> cacheUpdateMap = new HashMap<>();
+
+            for (Long missingId : missingCountIds) {
+                Integer dbCount = dbCounts.getOrDefault(missingId, 0);
+
+                // 更新返回结果
+                resultMap.get(missingId).setCount(dbCount);
+
+                // 准备缓存数据
+                cacheUpdateMap.put(LIKE_COUNT_KEY_PREFIX + missingId, String.valueOf(dbCount));
+            }
+
+            if (!cacheUpdateMap.isEmpty()) {
+                // 【关键优化】使用 Pipeline + SetEx 回填点赞数
+                stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+                    for (Map.Entry<String, String> entry : cacheUpdateMap.entrySet()) {
+                        byte[] keyBytes = entry.getKey().getBytes();
+                        byte[] valBytes = entry.getValue().getBytes();
+
+                        // 点赞数属于热点数据，过期时间可以稍短，并加随机
+                        long ttl = CACHE_TTL_SECONDS + ThreadLocalRandom.current().nextInt(3600);
+
+                        connection.stringCommands().setEx(keyBytes, ttl, valBytes);
+                    }
+                    return null;
+                });
+            }
+        }
+
         return resultMap;
-    }
-
-    @Override
-    @Description("加载更多回复")
-    public List<CommentVo> loadReplyByCommentId(Long id) {
-        List<CommentVo> commentVos = commentMapper.loadReplyByCommentId(id);
-        if (CollUtil.isEmpty(commentVos)) {
-            return Collections.emptyList();
-        }
-        Long curUserId = StpUtil.getLoginIdAsLong();
-        // 给顶级评论列表赋值是否点赞过
-        assignLiked(commentVos, curUserId);
-        return commentVos;
-    }
-
-    @Override
-    @Description("加载更多评论，不走缓存")
-    public List<CommentVo> getMore(Long carId) {
-        // 查询顶级评论
-        List<CommentVo> topComments = commentMapper.queryVoByCarId(carId);
-
-        if (topComments.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        Long curUserId = StpUtil.getLoginIdAsLong();
-        // 给顶级评论列表赋值是否点赞过
-        assignLikedTop(topComments, curUserId);
-
-        // 收集评论ID
-        List<Long> parentIds = topComments.stream()
-                .map(CommentVo::getId)
-                .collect(Collectors.toList());
-
-        // 查询子评论，对于每个顶级评论，一次最多加载3条
-        List<CommentVo> children = commentMapper.queryVoByIds(parentIds, 3);
-        if (CollUtil.isNotEmpty(children)) {
-            assignLiked(children, curUserId);
-        }
-
-        // 根据 parentId 分组
-        Map<Long, List<CommentVo>> childrenGroup =
-                children.stream().collect(Collectors.groupingBy(CommentVo::getParentCommentId));
-
-        // 把 child list 塞回顶级评论
-        topComments.forEach(top ->
-                top.setChildren(childrenGroup.getOrDefault(top.getId(), Collections.emptyList()))
-        );
-
-        return topComments;
     }
 
     @Override
@@ -379,7 +479,7 @@ public class CommentServiceImpl implements CommentService {
         like.setCommentId(commentId);
         like.setIsFallback(result == 1?0:1);
         like.setCreateTime(Date.from(Instant.now()));
-        sender.sendLikeSync(RabbitMQMessageConfig.EXCHANGE_NAME, RabbitMQMessageConfig.QUEUE_NAME_LIKE,like);
+        sender.sendLikeSync(RabbitMQMessageConfig.EXCHANGE_NAME, RabbitMQMessageConfig.ROUTING_KEY_LIKE,like);
         return ResultCodeEnum.SUCCESS;
     }
 
@@ -517,36 +617,29 @@ public class CommentServiceImpl implements CommentService {
         return aiConfigMapper.selectDefault();
     }
 
-    @Description("给评论列表赋值是否点赞过")
-    private void assignLikedTop(List<CommentVo> commentVos, Long curUserId) {
-//        for (TopCommentVo comment : commentVos) {
-//            // 尝试重建缓存
-//            rebuildLikedCache(comment.getId());
-//            // 判断是否已点赞，1为已点赞
-//            SetOperations<String, Object> stringObjectSetOperations = redisTemplate.opsForSet();
-//            Boolean isMember = stringObjectSetOperations.isMember(LIKE_KEY_PREFIX+comment.getId(), curUserId);
-//            Long liked = stringObjectSetOperations.size(key);
-//            comment.setLiked(Boolean.TRUE.equals(isMember) ? 1 : 0);
-//            if (liked != null) {
-//                comment.setLikeCount(liked.intValue() - 1);
-//            }
-//        }
-    }
-
-    @Description("给评论列表赋值是否点赞过")
-    private void assignLiked(List<CommentVo> commentVos, Long curUserId) {
-//        for (CommentVo comment : commentVos) {
-//            // 尝试重建缓存
-//            rebuildLikedCache(comment.getId());
-//            // 判断是否已点赞，1为已点赞
-//            SetOperations<String, Object> stringObjectSetOperations = redisTemplate.opsForSet();
-//            Boolean isMember = stringObjectSetOperations.isMember(key, curUserId);
-//            Long liked = stringObjectSetOperations.size(key);
-//            comment.setLiked(Boolean.TRUE.equals(isMember) ? 1 : 0);
-//            if (liked != null) {
-//                comment.setLikeCount(liked.intValue() - 1);
-//            }
-//        }
+    private CommentVo convertToVo(CommentIndexDto index,
+                                  Map<Long, CommentDetail> contentMap,
+                                  Map<Long, LikeInfoVo> likeMap) {
+        CommentVo vo = new CommentVo();
+        vo.setId(index.getId());
+        vo.setUserId(index.getUserId());
+        vo.setUsername(index.getUsername());
+        vo.setAvatar(index.getAvatar());
+        vo.setCarId(index.getCarId());
+        vo.setParentCommentId(index.getParentCommentId());
+        vo.setFollowCommentId(index.getFollowCommentId());
+        // 点赞数和点赞状态封装
+        vo.setLikeCount(likeMap.get(index.getId()) == null ? 0 : likeMap.get(index.getId()).getCount());
+        vo.setLiked(likeMap.get(index.getId()) == null ? 0 : likeMap.get(index.getId()).isLiked()? 1:0);
+        // 评论内容封装
+        if(contentMap.containsKey(index.getId())){
+            CommentDetail detail = contentMap.get(index.getId());
+            vo.setScore(detail.getScore());
+            vo.setContent(detail.getContent());
+            vo.setExtraImages(detail.getExtraImages());
+        }
+        vo.setCreateTime(index.getCreateTime());
+        return vo;
     }
 
 }

@@ -35,7 +35,51 @@
             u.username as username,
             u.avatar_url as avatar,
             ci.car_id as carId,
-            c.name as carName,
+            ci.parent_comment_id as parentCommentId,
+            ci.follow_comment_id as followCommentId,
+            ci.hot_score as hotScore,
+            (select count(1) from comment_index sub where sub.parent_comment_id = ci.id and sub.deleted = 0) as followCount,
+            ci.create_time as createTime,
+            ci.update_time as updateTime,
+            ci.deleted as deleted
+        from comment_index ci
+        left join user u on u.id = ci.user_id
+        where ci.car_id = #{carId}
+        and parent_comment_id = 0
+        and ci.deleted = 0
+        order by ci.hot_score desc,ci.create_time desc
+        limit #{limit}
+    </select>
+
+    <select id="queryByCarId" resultType="com.losgai.sys.dto.CommentIndexDto">
+        select
+            ci.id as id,
+            ci.user_id as userId,
+            u.username as username,
+            u.avatar_url as avatar,
+            ci.car_id as carId,
+            ci.parent_comment_id as parentCommentId,
+            ci.follow_comment_id as followCommentId,
+            ci.hot_score as hotScore,
+            (select count(1) from comment_index sub where sub.parent_comment_id = ci.id and sub.deleted = 0) as followCount,
+            ci.create_time as createTime,
+            ci.update_time as updateTime,
+            ci.deleted as deleted
+        from comment_index ci
+                 left join user u on u.id = ci.user_id
+        where ci.car_id = #{carId}
+          and parent_comment_id = 0
+          and ci.deleted = 0
+        order by ci.hot_score desc,ci.create_time desc
+    </select>
+
+    <select id="queryReplyWithLimit" resultType="com.losgai.sys.dto.CommentIndexDto">
+        select
+            ci.id as id,
+            ci.user_id as userId,
+            u.username as username,
+            u.avatar_url as avatar,
+            ci.car_id as carId,
             ci.parent_comment_id as parentCommentId,
             ci.follow_comment_id as followCommentId,
             ci.hot_score as hotScore,
@@ -44,10 +88,9 @@
             ci.deleted as deleted
         from comment_index ci
         left join user u on u.id = ci.user_id
-        left join car c on c.id = ci.car_id
-        where ci.car_id = #{carId}
-        order by ci.hot_score desc
-        limit 10
+        where ci.parent_comment_id = #{parentCommentId}
+        and ci.deleted = 0
+        order by ci.hot_score desc,ci.create_time desc
     </select>
 
     <delete id="deleteByPrimaryKey" parameterType="java.lang.Long">
@@ -59,7 +102,7 @@
         insert into comment_index
         ( id,user_id,car_id,parent_comment_id,follow_comment_id,hot_score,create_time,
         update_time,deleted)
-        values (#{id},#{userId},#{carId},#{parentCommentId},#{followCommentId},#{createTime},
+        values (#{id},#{userId},#{carId},#{parentCommentId},#{followCommentId},#{hotScore},#{createTime},
         #{updateTime},#{deleted})
     </insert>
     <insert id="insertSelective" keyColumn="id" keyProperty="id" parameterType="com.losgai.sys.entity.carRental.CommentIndex" useGeneratedKeys="true">
@@ -146,13 +189,17 @@
 
     <update id="batchUpdateHeat">
         UPDATE comment_index
-        SET hot_score = hot_score +
-        <foreach collection="deltaList" item="item" open="CASE id" close="END">
+        SET hot_score =
+        CASE id
+        <foreach collection="heatDtoList" item="item">
             WHEN #{item.commentId} THEN #{item.delta}
         </foreach>
+        ELSE hot_score
+        END
         WHERE id IN
-        <foreach collection="deltaList" item="item" open="(" separator="," close=")">
+        <foreach collection="heatDtoList" item="item" open="(" separator="," close=")">
             #{item.commentId}
         </foreach>
     </update>
+
 </mapper>
