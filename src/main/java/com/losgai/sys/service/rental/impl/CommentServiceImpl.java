@@ -628,6 +628,7 @@ public class CommentServiceImpl implements CommentService {
         vo.setCarId(index.getCarId());
         vo.setParentCommentId(index.getParentCommentId());
         vo.setFollowCommentId(index.getFollowCommentId());
+        vo.setFollowCount(index.getFollowCount());
         // 点赞数和点赞状态封装
         vo.setLikeCount(likeMap.get(index.getId()) == null ? 0 : likeMap.get(index.getId()).getCount());
         vo.setLiked(likeMap.get(index.getId()) == null ? 0 : likeMap.get(index.getId()).isLiked()? 1:0);

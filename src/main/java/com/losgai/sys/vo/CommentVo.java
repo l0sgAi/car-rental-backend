@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.util.Date;
-import java.util.List;
 
 /**
  * 评论数据传输对象，支持树形结构
@@ -35,11 +34,6 @@ public class CommentVo {
      * 对应车辆ID
      */
     private Long carId;
-
-    /**
-     * 对应车辆名称
-     */
-    private String carName;
     
     /**
      * 父级评论id,默认0即为顶级评论
@@ -60,6 +54,11 @@ public class CommentVo {
      * 点赞数量
      */
     private Integer likeCount = 0;
+
+    /**
+     * 回复数量
+     * */
+    private Integer followCount = 0;
 
     /**
      * 评分(只有租户有)
